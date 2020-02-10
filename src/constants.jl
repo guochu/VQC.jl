@@ -1,0 +1,9 @@
+
+
+
+
+
+
+const EXPM_TOL = 1.0e-12
+const EXPM_MAXITER = 10000
+const QCTRL_DIFF_STEP_SIZE = 1.0e-10
