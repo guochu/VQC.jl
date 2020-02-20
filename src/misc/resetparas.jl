@@ -1,7 +1,16 @@
 export set_parameters!
 
-set_parameters_impl!(s, coeff::AbstractVector{<:Number}, start_pos::Int) = error("
-    set_parameters_impl! not implemented for type $(typeof(s))")
+function set_parameters_impl!(a::AbstractVector, coeff::AbstractVector{<:Number}, start_pos::Int) 
+    for j in 1:length(a)
+        if isa(a[j], Number)
+            a[j] = coeff[start_pos]
+            start_pos += 1
+        else
+            start_pos = set_parameters_impl!(a[j], coeff, start_pos)
+        end
+    end
+    return start_pos
+end
 
 set_parameters_impl!(a::AbstractArray{<:Number, N}, coeff::AbstractVector{<:Number}, start_pos::Int=1) where N = begin
     for j in 1:length(a)

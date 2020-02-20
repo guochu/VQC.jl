@@ -29,34 +29,6 @@ _single_derivative(f, v::AbstractArray{<:Number}, dt::Real, fv::Real) = begin
     return r
 end
 
-# _single_derivative(f, v::AbstractArray{<:Real}, dt::Real, fv::Real) = begin
-#     x = copy(v)
-#     tmp = similar(x)
-#     for i in 1:length(v)
-#         x[i] = _increase_dt(x[i], dt)
-#         tmp[i] = (f(x) - fv) / dt
-#         x[i] = v[i]
-#     end 
-#     return tmp
-# end
-
-
-# _single_derivative(f, v::AbstractArray{<:Complex}, dt::Real, fv::Real) = begin
-#     x = copy(v)
-#     tmp = similar(x)
-#     for i in 1:length(v)
-#         a, b = _increase_dt(x[i], dt)
-#         x[i] = a
-#         da = (f(x) - fv) / dt
-#         x[i] = b
-#         db = (f(x) - fv) / dt
-#         tmp[i] = da + db*im
-#         x[i] = v[i]
-#     end 
-#     return tmp
-# end
-
-
 function simple_gradient(f, args...; dt::Real=1.0e-6)
     r = []
     v0 = f(args...)
@@ -72,17 +44,19 @@ end
 
 function check_gradient(f, args...; dt::Real=1.0e-6, atol::Real=1.0e-4, verbose::Int=0)
     grad = collect_variables(gradient(f, args...))
-    # tmpargs = [args...]
-    tmpargs = args
+    tmpargs = collect(args)
     f2(x) = begin
-        set_parameters!(x, tmpargs...)
+        set_parameters!(x, tmpargs)
         return f(tmpargs...)
     end
-    grad1 = simple_gradient(f2, parameters(tmpargs...), dt=dt)[1]
+    grad1 = simple_gradient(f2, parameters(tmpargs), dt=dt)[1]
 
-    v = isapprox(grad, grad1, atol=atol)
+    diffmax = maximum(abs.(grad - grad1))
+    v = diffmax <= atol
     if (!v) && (verbose > 0)
+        println("largest difference is $diffmax.")
         println("auto gradient is $grad.")
+        println("---------------------------------------------------------------------")
         println("finite difference gradient is $grad1")
     end
     return v
