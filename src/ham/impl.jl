@@ -78,8 +78,8 @@ end
 
 _normal_op(s::Hamiltonian, opstr::AbstractDict) = Dict(k=>_normal_op(s, k, v) for (k, v) in opstr)
 
-add!(s::Hamiltonian, opstr::AbstractDict, coeff::Number=1.) = (s.h += coeff*generateprodham(get_identities(s), _normal_op(s, opstr)))
-add!(s::Hamiltonian, key, op, coeff::Number=1.) = add!(s, Dict(k=>v for (k, v) in zip(key, op)), coeff)
+add!(s::Hamiltonian, opstr::AbstractDict; coeff::Number=1.) = (s.h += coeff*generateprodham(get_identities(s), _normal_op(s, opstr)))
+add!(s::Hamiltonian, key, op; coeff::Number=1.) = add!(s, Dict(k=>v for (k, v) in zip(key, op)), coeff=coeff)
 
 *(m::Hamiltonian, s::Number) = Hamiltonian(particles(m), matrix(m) * s)
 *(s::Number, m::Hamiltonian) = m * s

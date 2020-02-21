@@ -4,7 +4,7 @@ using Zygote
 using Zygote: @adjoint
 
 import Base.+, Base.-, Base.*, Base./
-import LinearAlgebra: dot, norm
+import LinearAlgebra: dot, norm, ishermitian
 
 using KrylovKit: exponentiate
 using SparseArrays: spzeros, sparse, SparseMatrixCSC
@@ -25,7 +25,8 @@ include("observer/observer.jl")
 include("diff/differentiation.jl")
 include("diff/autodiff.jl")
 
-include("qctrl/ham.jl")
+include("ham/ham.jl")
+include("ctrlham/ctrlham.jl")
 
 # utility functions
 include("utility/utility.jl")

@@ -1,5 +1,5 @@
 
-export ctrlham, evolve
+export ctrlham
 
 struct ControlHamiltonian{A, B} <: AbstractHamiltonianExponential
 	Hi::A
@@ -51,15 +51,6 @@ end
 # 	return y
 # end
 
-evolve_mat(mat::AbstractMatrix, dt::Number, x::AbstractVector) = begin
-	try
-		y, info = exponentiate(mat, dt, x; tol=EXPM_TOL, maxiter=EXPM_MAXITER, ishermitian=true)
-		(info.converged==1) || error("expm fail to converge.")
-		return y
-	catch
-		return exp(Matrix(mat) .* dt) * x
-	end
-end 
 
 function compute_diff_expec(m::ControlHamiltonian, j::Int, vo::AbstractVector, vi::AbstractVector)
 	v = get_fvals(m)[j]

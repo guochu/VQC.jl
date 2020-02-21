@@ -6,8 +6,10 @@ mutable struct Variable{T}
 	Variable(m::Number) = new{typeof(m)}(m)
 end
 
-Base.:+(a::Variable, b::Float64) = a.value + b
-Base.:-(a::Variable, b::Float64) = a.value - b
++(a::Variable, b::Float64) = a.value + b
+-(a::Variable, b::Float64) = a.value - b
+-(a::Variable) = Variable(-value(a))
++(a::Variable) = a
 
 value(x::Variable) = x.value
 value(x) = x

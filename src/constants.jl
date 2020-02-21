@@ -5,5 +5,7 @@
 
 
 const EXPM_TOL = 1.0e-12
-const EXPM_MAXITER = 10000
+const EXPM_MAXITER = 100000
 const QCTRL_DIFF_STEP_SIZE = 1.0e-10
+
+const OBSERVER_IMAG_TOL = 1.0e-6
