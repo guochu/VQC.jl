@@ -66,7 +66,7 @@ end
 
 Observers(ps::Vector{ElementaryParticle}) = Observers(ps, Vector{ObserverBase}())
 Observers(h::Hamiltonian) = Observers(particles(h))
-
+Observers(L::Int) = Observers([spin_half() for i in 1:L])
 
 function apply(s::Observers, state::AbstractVector)
 	result = []
