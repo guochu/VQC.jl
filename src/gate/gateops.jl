@@ -231,7 +231,7 @@ function CRxGate(key::Tuple{Int, Int}, parameter::Real)
 	CRxGate(key, parameter, perm)
 end
 op(s::CRxGate) = permute(reshape(CONTROL(Rx(value(s.parameter))),2,2,2,2), s.perm)
-shift(s::CRxGate, i::Int) = CRxGate((l+i for l in key(s)), s.parameter, s.perm)
+shift(s::CRxGate, i::Int) = CRxGate(_shift(key(s), i), s.parameter, s.perm)
 
 
 struct CRyGate{T} <: AbstractTwoBodyGate
@@ -245,7 +245,7 @@ function CRyGate(key::Tuple{Int, Int}, parameter::Real)
 	CRyGate(key, parameter, perm)
 end
 op(s::CRyGate) = permute(reshape(CONTROL(Ry(value(s.parameter))),2,2,2,2), s.perm)
-shift(s::CRyGate, i::Int) = CRyGate((l+i for l in key(s)), s.parameter, s.perm)
+shift(s::CRyGate, i::Int) = CRyGate(_shift(key(s), i), s.parameter, s.perm)
 
 
 
@@ -260,7 +260,7 @@ function CRzGate(key::Tuple{Int, Int}, parameter::Real)
 	CRzGate(key, parameter, perm)
 end
 op(s::CRzGate) = permute(reshape(CONTROL(Rz(value(s.parameter))),2,2,2,2), s.perm)
-shift(s::CRzGate, i::Int) = CRzGate((l+i for l in key(s)), s.parameter, s.perm)
+shift(s::CRzGate, i::Int) = CRzGate(_shift(key(s), i), s.parameter, s.perm)
 
 
 
