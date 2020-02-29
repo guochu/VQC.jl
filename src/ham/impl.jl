@@ -1,54 +1,5 @@
 export add!, Hamiltonian, matrix
 
-# function _parse_op(op::AbstractString)
-# 	if op == "X"
-# 	    return X
-# 	elseif op == "Y"
-# 		return Y
-# 	elseif op == "Z"
-# 		return Z
-# 	elseif op == "0"
-# 		return UP
-# 	elseif op == "1"
-# 		return DOWN
-# 	else
-# 		error("unknown operation $op.")
-# 	end
-# end
-
-# _parse_op(op::AbstractMatrix) = begin
-#     (size(op) == (2,2)) || error("matrix shape error.")
-#     return op
-# end 
-
-# _parse_op(op::AbstractDict) = Dict(k=>_parse_op(v) for (k, v) in op)
-
-# function _generateprodhamimpl(L::Int, opstr)
-# 	I2 = eye(2)
-# 	vl = Vector{Any}(undef, L)
-# 	for i in 1:L
-# 	    v = get(opstr, i, nothing)
-# 	    if v === nothing
-# 	        vl[i] = I2
-# 	    else
-# 	    	vl[i] = v
-# 	    end
-# 	end
-# 	return sparse(kron(vl...))
-# end
-
-# generateprodham(L::Int) = begin
-#     n = 2^L
-#     return spzeros(n, n)
-# end
-
-# generateprodham(L::Int, opstr::AbstractDict) = _generateprodhamimpl(L, _parse_op(opstr))
-
-# _generateprodhamimpl(L::Int, key::AbstractVector, op::AbstractVector) = generateprodham(L, 
-# 	Dict(k=>v for (k, v) in zip(key, op)))
-
-# generateprodham(L::Int, key, op) = _generateprodhamimpl(L, [key...], [op...])
-
 mutable struct Hamiltonian
 	particles::Vector{ElementaryParticle}
 	h::SparseMatrixCSC{Complex{Float64}, Int}

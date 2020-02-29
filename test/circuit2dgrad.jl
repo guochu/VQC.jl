@@ -2,7 +2,7 @@ push!(LOAD_PATH, "../src")
 
 
 using VQC: qstate, qrandn, simple_gradient, distance, check_gradient
-using VQC: get_coef_sizes_2d, variational_circuit_2d
+using VQC: variational_circuit_2d
 using LinearAlgebra: dot
 
 using Zygote
@@ -15,8 +15,8 @@ function circuit2d_grad_dot_real(m::Int, n::Int, depth::Int)
 	L = m * n
 	target_state = qrandn(Complex{Float64}, L)
 	initial_state = qstate(Complex{Float64}, L)
-	x0 = randn(get_coef_sizes_2d(m, n, depth))
-	circuit =  variational_circuit_2d(m, n, depth, x0)
+	# x0 = randn(get_coef_sizes_2d(m, n, depth))
+	circuit =  variational_circuit_2d(m, n, depth)
 
 	loss(x) = real(dot(target_state, x * initial_state))
 
