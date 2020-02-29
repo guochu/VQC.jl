@@ -1,4 +1,4 @@
-
+export AbstractCircuit, AbstractGate
 
 abstract type AbstractQuantumOperation end
 abstract type AbstractDifferentiableQuantumOperation <: AbstractQuantumOperation end

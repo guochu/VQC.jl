@@ -77,8 +77,19 @@ function apply!(x::QMeasure, qstate::AbstractVector)
 	return istate, probability
 end
 
+"""
+	measure(qstate::AbstractVector, i::Int)
+Measure the i-th qubit of the quantum state, and return a 3-tuple including the collapsed quantum state, \n 
+the measurement outcome, and the probability with which we get the outcome.
+"""
 measure(qstate::AbstractVector, pos::Int) = apply(QMeasure(pos), qstate)
 
+"""
+	measure!(qstate::AbstractVector, pos::Int; auto_reset::Bool=true)
+Measure the i-th qubit of the quantum state, and return a 2-tuple including the measurement outcome, \n 
+and the probability with which we get the outcome. The quantum state is updated inplace. \n 
+If auto_reset=true,the measured qubit is reset to 0, otherwise it will be the same as the measurement outcome.
+"""
 measure!(qstate::AbstractVector, pos::Int; auto_reset::Bool=true) = apply!(QMeasure(pos, auto_reset=auto_reset), qstate)
 
 # function measure(s::QMeasure, qstate::StateVector) 

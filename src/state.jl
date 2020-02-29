@@ -42,6 +42,11 @@ end
 
 kernal_mapping(s::Real) = [cos(s*pi/2), sin(s*pi/2)]
 
+"""
+	qstate(::Type{T}, thetas::AbstractVector{<:Real}) where {T <: Number}
+Return a product quantum state of [[cos(pi*theta/2), sin(pi*theta/2)]] for theta in thetas]\n
+Example: qstate(Complex{Float64}, [0.5, 0.7])
+"""
 function qstate(::Type{T}, mpsstr::AbstractVector{<:Real}) where {T <: Number}
 	isempty(mpsstr) && error("no state")
 	if length(mpsstr) == 1
@@ -52,8 +57,22 @@ function qstate(::Type{T}, mpsstr::AbstractVector{<:Real}) where {T <: Number}
 	return Vector{T}(v)
 end
 
+"""
+	qstate(thetas::AbstractVector{<:Real}) = qstate(Complex{Float64}, thetas)
+Return a product quantum state of [[cos(pi*theta/2), sin(pi*theta/2)]] for theta in thetas]
+"""
 qstate(mpsstr::AbstractVector{<:Real}) = qstate(Complex{Float64}, mpsstr)
+
+"""
+	qstate(::Type{T}, n::Int) where {T <: Number}
+Return a product quantum state of [[1, 0] for _ in 1:n] for theta in thetas]
+"""
 qstate(::Type{T}, n::Int) where {T <: Number} = qstate(T, [0 for _ in 1:n])
+
+"""
+	qstate(n::Int) = qstate(Complex{Float64}, n)
+Return a product quantum state of [[1, 0] for _ in 1:n] for theta in thetas]
+"""
 qstate(n::Int) = qstate(Complex{Float64}, n)
 
 function onehot(::Type{T}, L::Int, pos::Int) where T
@@ -73,6 +92,10 @@ end
 
 qrandn(n::Int) = qrandn(Complex{Float64}, n)
 
+"""
+	amplitude(s::AbstractVector, i::AbstractVector{Int}) 
+Return a single amplitude of the quantum state
+"""
 function amplitude(s::AbstractVector, i::AbstractVector{Int}) 
 	(length(i)==nqubits(s)) || error("basis mismatch with number of qubits.")
 	for s in i
@@ -83,6 +106,10 @@ function amplitude(s::AbstractVector, i::AbstractVector{Int})
 	return s[idx+1]
 end
 
+"""
+	amplitudes(s::AbstractVector)
+Return all amplitudes of the quantum state
+"""
 amplitudes(s::AbstractVector) = s
 
 probabilities(s::AbstractVector) = (abs.(s)).^2

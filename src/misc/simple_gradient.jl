@@ -29,6 +29,10 @@ _single_derivative(f, v::AbstractArray{<:Number}, dt::Real, fv::Real) = begin
     return r
 end
 
+"""
+    simple_gradient(f, args...; dt::Real=1.0e-6)
+Numerical gradient with finite-difference method.
+"""
 function simple_gradient(f, args...; dt::Real=1.0e-6)
     r = []
     v0 = f(args...)
@@ -42,6 +46,10 @@ function simple_gradient(f, args...; dt::Real=1.0e-6)
 end
 
 
+"""
+    check_gradient(f, args...; dt::Real=1.0e-6, atol::Real=1.0e-4, verbose::Int=0)
+Check the gradient of a function f with arguments args...
+"""
 function check_gradient(f, args...; dt::Real=1.0e-6, atol::Real=1.0e-4, verbose::Int=0)
     grad = collect_variables(gradient(f, args...))
     tmpargs = collect(args)

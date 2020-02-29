@@ -34,6 +34,10 @@ function set_parameters_impl!(a::Tuple, coeff::AbstractVector{<:Number}, start_p
     return start_pos
 end
 
+"""
+    set_parameters!(coeff::AbstractVector{<:Number}, args...)
+Set parameters for args...
+"""
 function set_parameters!(coeff::AbstractVector{<:Number}, args...)
     start_pos = 1
     for item in args

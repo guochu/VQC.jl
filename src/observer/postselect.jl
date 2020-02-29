@@ -52,7 +52,16 @@ function apply(x::QSelect, qstate::AbstractVector; keep::Bool=false)
 	return divd.(r, ns), real(ns)
 end
 
+"""
+	post_select!(qstate::AbstractVector, key::Int, state::Int=0)
+Post-select the i-th qubit of the quantum state, and the quantum state is updated inplace, the probability is returned.
+"""
 post_select!(qstate::AbstractVector, key::Int, state::Int=0) = apply!(QSelect(key, state), qstate)
+
+"""
+	post_select(qstate::AbstractVector, key::Int, state::Int=0; keep::Bool=false)
+Return the collapsed quantum state as well as the probability.
+"""
 post_select(qstate::AbstractVector, key::Int, state::Int=0; keep::Bool=false) = apply(QSelect(key, state), qstate, keep=keep)
 
 @adjoint QSelect(key::Int, state::Int) = QSelect(key, state), z -> (nothing, nothing)

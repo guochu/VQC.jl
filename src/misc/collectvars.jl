@@ -26,6 +26,10 @@ function collect_variables_impl!(a::Vector, b::Tuple)
 	end
 end
 
+"""
+    collect_variables(args...)
+Collect variables from args...
+"""
 function collect_variables(args...)
 	a = Number[]
 	for item in args
@@ -34,4 +38,7 @@ function collect_variables(args...)
 	return a
 end
 
+"""
+    parameters(args...) = collect_variables(args...)
+"""
 parameters(args...) = collect_variables(args...)

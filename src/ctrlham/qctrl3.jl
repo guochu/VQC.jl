@@ -7,6 +7,10 @@ struct ControlHamiltonian3{A, B} <: AbstractHamiltonianExponential
 	times::Vector{Float64}
 end
 
+"""
+	ctrlham(a::AbstractMatrix, b::Vector{<:AbstractMatrix}, nparas::Int)
+Return a variational hamiltonian object. ``H(t_i) = H^0 + \\sum_j f_j(t_i) H^1_j``
+"""
 ctrlham(a::AbstractMatrix, b::Vector{<:AbstractMatrix}, nparas::Int) = ControlHamiltonian3(a, b, 
 	[rand(nparas) for i in 1:length(b)], rand(nparas))
 

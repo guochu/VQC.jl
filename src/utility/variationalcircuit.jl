@@ -31,6 +31,10 @@ function variational_circuit_1d(L::Int, depth::Int, g::Function=rand)
 	return circuit	
 end
 
+"""
+	variational_circuit(L::Int, d::Int, g::Function=rand)
+Return a variational quantum circuit given L qubis and d depth
+"""
 variational_circuit(L::Int, depth::Int, g::Function=rand) = variational_circuit_1d(L, depth, g)
 
 
