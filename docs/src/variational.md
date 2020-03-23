@@ -5,7 +5,7 @@ use VQC to build variational quantum circuits
 
 
 ## Creating a variational quantum circuit
-```@repl
+```@example
 push!(LOAD_PATH, "../../src")
 using VQC
 L = 3
@@ -47,7 +47,7 @@ variational_circuit(L::Int, depth::Int, g::Function=rand)
 ```
 
 ## A simple application of VQC and Flux
-```@repl
+```@example
 using VQC
 using Zygote
 using Flux.Optimise

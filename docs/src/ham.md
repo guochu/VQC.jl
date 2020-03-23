@@ -4,7 +4,7 @@
 VQC also has preliminary suport for hamiltonian evolution.
 
 ## A simple hamiltonian simulation
-```@repl
+```@example
 push!(LOAD_PATH, "../../src")
 using VQC
 ps = spin_half()
@@ -26,5 +26,5 @@ observer = Observers(ham)
 add!(observer, (1,), ("sz",), name="z")
 add!(observer, (2,), ("n",), name="n")
 add!(observer, (1,2), ("sp", "a"), name="j")
-obs = measure(observer, state)
+obs = apply(observer, state)
 ```

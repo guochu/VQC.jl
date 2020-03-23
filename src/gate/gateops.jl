@@ -226,7 +226,7 @@ struct CRxGate{T} <:AbstractTwoBodyGate
 	perm::Vector{Int}
 end
 
-function CRxGate(key::Tuple{Int, Int}, parameter::Real) 
+function CRxGate(key::Tuple{Int, Int}, parameter::Union{Number, Variable}) 
 	key, perm = _get_norm_order(key)
 	CRxGate(key, parameter, perm)
 end
@@ -240,7 +240,7 @@ struct CRyGate{T} <: AbstractTwoBodyGate
 	perm::Vector{Int}	
 end
 
-function CRyGate(key::Tuple{Int, Int}, parameter::Real) 
+function CRyGate(key::Tuple{Int, Int}, parameter::Union{Number, Variable}) 
 	key, perm = _get_norm_order(key)
 	CRyGate(key, parameter, perm)
 end
@@ -255,7 +255,7 @@ struct CRzGate{T} <: AbstractTwoBodyGate
 	perm::Vector{Int}	
 end
 
-function CRzGate(key::Tuple{Int, Int}, parameter::Real)
+function CRzGate(key::Tuple{Int, Int}, parameter::Union{Number, Variable})
 	key, perm = _get_norm_order(key)
 	CRzGate(key, parameter, perm)
 end

@@ -10,7 +10,7 @@ hybrid quantum-classical algorithms. Current VQC also has a basic support
 for variational Hamiltonian simulation.
 
 A simple code snippet to create a two-qubit bell state
-```@repl
+```@example
 push!(LOAD_PATH, "../../src")
 using VQC
 
@@ -31,7 +31,7 @@ p = amplitude(state, [0, 1])
 ```
 
 Build a variational quantum circuit is as simple as a normal quantum state
-```@repl
+```@example
 using VQC
 using Zygote
 L = 3

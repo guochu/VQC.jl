@@ -22,7 +22,7 @@ amplitudes(s::AbstractVector)
 
 
 Examples
-```@repl
+```@example
 push!(LOAD_PATH, "../../src")
 using VQC
 state = qstate(2)
@@ -34,7 +34,7 @@ state = qstate([0.5, 0.7])
 ## Quantum gate
 Predefined elementary gates "X, Y, Z, S, H, sqrtX, sqrtY, T, Rx, Ry, Rz, CONTROL, CZ, CNOT, CX, SWAP, iSWAP, XGate, YGate, ZGate, HGate, SGate, TGate, SqrtXGate, SqrtYGate, RxGate, RyGate, RzGate, CZGate, CNOTGate, SWAPGate, iSWAPGate, CRxGate, CRyGate, CRzGate, TOFFOLIGate"
 
-```@repl
+```@example
 using VQC
 
 circuit = QCircuit()
@@ -73,7 +73,7 @@ Base.append!(x::AbstractCircuit, y::Vector{T}) where {T<:AbstractGate}
 ```
 
 Circuit manipulations
-```@repl
+```@example
 using VQC
 circuit = QCircuit()
 push!(circuit, (1, H))
