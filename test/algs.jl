@@ -1,6 +1,3 @@
-push!(LOAD_PATH, "../src")
-
-
 using VQC: qstate, QCircuit, measure!, measure
 using VQC: add!, H, CONTROL, extend!, QFT, apply!, qvalues
 

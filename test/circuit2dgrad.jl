@@ -1,6 +1,3 @@
-push!(LOAD_PATH, "../src")
-
-
 using VQC: qstate, qrandn, simple_gradient, distance, check_gradient
 using VQC: variational_circuit_2d
 using LinearAlgebra: dot

@@ -1,5 +1,3 @@
-push!(LOAD_PATH, "../src")
-
 using VQC: QCircuit, ctrlham, qrandn, qstate, check_gradient, RxGate, expham, get_times, Variable
 
 using LinearAlgebra: dot

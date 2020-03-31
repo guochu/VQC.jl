@@ -1,6 +1,3 @@
-push!(LOAD_PATH, "../src")
-
-
 using VQC: qrandn, qstate, measure, measure!, post_select, post_select!, renormalize!, ZERO, ONE
 using VQC: distance, check_gradient
 
