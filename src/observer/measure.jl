@@ -15,7 +15,7 @@ function discrete_sample(l::Vector{Float64})
 	        return i
 	    end
 	end
-	error("something wrong.")
+	return L
 end
 
 function _local_measure(rhov::AbstractVector, basis::AbstractMatrix)
@@ -30,6 +30,7 @@ function _local_measure(rhov::AbstractVector, basis::AbstractMatrix)
 		s = Base.transpose(basis[:, i])*m*conj(basis[:, i]) 
 		sm = imag(s)
 		(abs(sm) > tol) && @warn "Imaginary part of the measure result is larger than $tol.\n"
+		(real(s) < 0) && (s = 0.)
 		push!(l, real(s))
 	end
 	i = discrete_sample(l)
