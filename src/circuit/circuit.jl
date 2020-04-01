@@ -69,6 +69,7 @@ struct QCircuit <: AbstractCircuit
 end
 
 QCircuit() = QCircuit(Vector{AbstractGate}())
+Base.copy(x::QCircuit) = QCircuit(copy(data(x)))
 
 """
 	apply!(circuit::AbstractCircuit, v::Vector)

@@ -1,4 +1,4 @@
-export qstate, qrandn, distance, distance2, vdot, cdot, onehot
+export qstate, qrandn, distance, distance2, vdot, cdot, onehot, nqubits, qcat
 export amplitude, amplitudes, probability, probabilities
 
 cdot(x::AbstractArray, y::AbstractArray) = dot(x, y)
@@ -75,6 +75,8 @@ qstate(::Type{T}, n::Int) where {T <: Number} = qstate(T, [0 for _ in 1:n])
 Return a product quantum state of [[1, 0] for _ in 1:n] for theta in thetas]
 """
 qstate(n::Int) = qstate(Complex{Float64}, n)
+
+qcat(v::AbstractVector...) = kron(reverse(v)...)
 
 function onehot(::Type{T}, L::Int, pos::Int) where T
 	r = zeros(T, L)

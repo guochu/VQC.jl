@@ -1,5 +1,5 @@
 export X, Y, Z, S, H, sqrtX, sqrtY, T, Rx, Ry, Rz, CONTROL, CZ, CNOT, CX, SWAP, iSWAP
-export CONTROLCONTROL, TOFFOLI, CCX
+export CONTROLCONTROL, TOFFOLI, CCX, FREDKIN, CSWAP
 
 ZERO = [1., 0.]
 
@@ -67,3 +67,6 @@ const TOFFOLI = CONTROLCONTROL(X)
 
 const CCX = TOFFOLI
 
+const FREDKIN = _row_kron(UP, eye(4)) + _row_kron(DOWN, SWAP)
+
+const CSWAP = FREDKIN

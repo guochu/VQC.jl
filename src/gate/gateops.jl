@@ -2,7 +2,7 @@ export inner_gate, op, key, shift, AdjointGate, TransposeGate, ConjugateGate, ga
 export OneBodyGate, TwoBodyGate, ThreeBodyGate
 export XGate, YGate, ZGate, HGate, SGate, TGate, SqrtXGate, SqrtYGate
 export RxGate, RyGate, RzGate
-export CZGate, CNOTGate, SWAPGate, iSWAPGate, CRxGate, CRyGate, CRzGate, TOFFOLIGate
+export CZGate, CNOTGate, SWAPGate, iSWAPGate, CRxGate, CRyGate, CRzGate, TOFFOLIGate, FREDKINGate
 
 abstract type AbstractOneBodyGate <: AbstractGate end
 abstract type AbstractTwoBodyGate <: AbstractGate end
@@ -163,7 +163,7 @@ function ThreeBodyGate(key::Tuple{Int, Int, Int}, m::AbstractMatrix; check_unita
 	    	@warn "input matrix $m is not unitary."
 	    end		    
 	end
-	TwoBodyGate(key, reshape(m,2,2,2,2,2,2))
+	ThreeBodyGate(key, reshape(m,2,2,2,2,2,2))
 end
 
 # constructor
@@ -265,7 +265,8 @@ shift(s::CRzGate, i::Int) = CRzGate(_shift(key(s), i), s.parameter, s.perm)
 
 
 
-TOFFOLIGate(key::Tuple{Int, Int, Int}) = ThreeBodyGate(key, TOFFOLIGate)
+TOFFOLIGate(key::Tuple{Int, Int, Int}) = ThreeBodyGate(key, TOFFOLI)
+FREDKINGate(key::Tuple{Int, Int, Int}) = ThreeBodyGate(key, FREDKIN)
 
 gate(key::Int, m::AbstractMatrix) = OneBodyGate(key, m)
 gate(key::Tuple{Int}, m::AbstractMatrix) = OneBodyGate(key[1], m)
