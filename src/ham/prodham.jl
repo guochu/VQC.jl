@@ -7,11 +7,11 @@ function generateprodham(idens::Vector{<:AbstractMatrix}, opstr::AbstractDict)
 	for i in 1:L
 	    v = get(opstr, i, nothing)
 	    if v === nothing
-	        vl[i] = idens[i]
+	        vl[i] = sparse(idens[i])
 	    else
 	    	(size(v) == size(idens[i])) || error("wrong matrix size.")
-	    	vl[i] = v
+	    	vl[i] = sparse(v)
 	    end
 	end
-	return sparse(kron(vl...))
+	return kron(vl...)
 end

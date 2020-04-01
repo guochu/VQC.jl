@@ -2,7 +2,7 @@ export add!, Hamiltonian, matrix
 
 mutable struct Hamiltonian
 	particles::Vector{ElementaryParticle}
-	h::SparseMatrixCSC{Complex{Float64}, Int}
+	h::AbstractMatrix
 end
 
 particles(s::Hamiltonian) = s.particles
@@ -14,7 +14,7 @@ nsites(s::Hamiltonian) = length(particles(s))
 function Hamiltonian(pts::Vector{ElementaryParticle})
 	isempty(pts) && error("no particles.")
 	d = prod(physical_dimension.(pts))
-	return Hamiltonian(pts, spzeros(Complex{Float64}, d, d))
+	return Hamiltonian(pts, spzeros(Float64, d, d))
 end
 
 Hamiltonian(L::Int) = Hamiltonian([spin_half() for i in 1:L])

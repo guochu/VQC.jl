@@ -1,6 +1,7 @@
-export qstate, qrandn, distance, vdot, onehot
+export qstate, qrandn, distance, distance2, vdot, cdot, onehot
 export amplitude, amplitudes, probability, probabilities
 
+cdot(x::AbstractArray, y::AbstractArray) = dot(x, y)
 
 vdot(x::AbstractVector, y::AbstractVector) = begin
     (length(x)==length(y)) || error("quantum state size mismatch.")
@@ -22,15 +23,15 @@ end
 
 renormalize(s::AbstractVector) = s / norm(s)
 
-function distance(x::AbstractVector, y::AbstractVector)
+function distance2(x::AbstractVector, y::AbstractVector)
     sA = dot(x, x)
     sB = dot(y, y)
     c = dot(x, y)
     r = real(sA+sB-2*c)
-    # println("$sA, $sB, $c")
-    (r >= 0) || error("distance $r is negative.")
-    return r
+    return abs(r)
 end 
+
+distance(x::AbstractVector, y::AbstractVector) = sqrt(distance2(x, y))
 
 # expectation(a::AbstractVector, circuit::AbstractCircuit, b::AbstractVector) = dot(a, circuit * b)
 

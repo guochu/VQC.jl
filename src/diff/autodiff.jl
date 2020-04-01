@@ -1,6 +1,5 @@
-@adjoint vdot(x::AbstractVector, y::AbstractVector) = vdot(x, y), z -> (conj(y) * z, conj(x) * z)
-# @adjoint dot(x::AbstractVector, y::AbstractVector) = dot(x, y), z -> (conj(y * z), conj(x) * z)
-# @adjoint conj(x::AbstractVector) = conj(x), z -> (conj(z),)
+@adjoint vdot(x::AbstractArray, y::AbstractArray) = vdot(x, y), z -> (conj(y) * z, conj(x) * z)
+@adjoint cdot(x::AbstractArray, y::AbstractArray) = cdot(x, y), z -> (y * conj(z), x * z)
 
 
 function gate_expec(state_a::AbstractVector, gate::AbstractGate, state_b::AbstractVector) 

@@ -1,7 +1,13 @@
 export QCircuit, add!, extend!, apply!
 
 data(s::AbstractCircuit) = s.data
-scalar_type(s::AbstractCircuit) = promote_type([scalar_type(v) for v in s]...)
+function scalar_type(s::AbstractCircuit)
+	T = Float64
+	for gate in s
+	    T = promote_type(T, scalar_type(gate))
+	end
+	return T
+end 
 
 # vector interface
 Base.getindex(x::AbstractCircuit, i::Int) = Base.getindex(data(x), i)

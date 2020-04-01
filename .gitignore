@@ -1,3 +1,7 @@
 */*checkpoint*
 .DS_Store
+data/
+result/
+*.txt
+*.json
 docs/build/
