@@ -154,12 +154,23 @@ function train_by_flux_exact(target_state, initial_state, c, x0, alpha, epochs)
 	return parameters(circuit), fvalues
 end
 
-function train_by_flux_exact_n(target_state, initial_state, c, alpha, epochs, n, L)
+function choose_initial_paras(f, circuit, L)
 	x0 = randn(L)
+	set_parameters!(x0, circuit)
+	while f(circuit) > 0.5
+	    x0 = randn(L)
+	    set_parameters!(x0, circuit)
+	end
+	return x0
+end
+
+function train_by_flux_exact_n(target_state, initial_state, c, alpha, epochs, n, L)
+	loss_exact(m) = 1 - abs(vdot(target_state, m * initial_state))
+	x0 = choose_initial_paras(loss_exact, c, L)
 	paras, fvalues = train_by_flux_exact(target_state, initial_state, c, x0, alpha, epochs)
 	fidelity = fvalues[end]
 	for i in 2:n
-		x0_tmp = randn(L)
+		x0_tmp = choose_initial_paras(loss_exact, c, L)
 	    paras_tmp, fvalues_tmp = train_by_flux_exact(target_state, initial_state, c, x0_tmp, alpha, epochs)
 	    if fvalues_tmp[end] < fidelity
 	        paras = paras_tmp
@@ -187,7 +198,7 @@ function learn_ground_state(paras)
 	
 	loss_approx(m) = 1. - swap_test(target_state, m * initial_state)
 
-	for depth in 1:20
+	for depth in 1:5
 		println("parameters used: L=$L, depth=$(depth), J=$J, Jzz=$Jzz, h=$h.")
 		circuit = real_variational_circuit(L, depth)
 
@@ -214,9 +225,9 @@ function learn_ground_state(paras)
 		println()
 		io = open(filename, "w")
 		write(io, result)  
-		if fvalues_exact[end] <= 1.0e-2
-		     break
-		end 
+		# if fvalues_exact[end] <= 1.0e-2
+		#      break
+		# end 
 
 	end
 end
