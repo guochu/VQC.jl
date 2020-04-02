@@ -79,7 +79,7 @@ function swap_test(x::AbstractVector, y::AbstractVector)
 		push!(out_comes, j)
 	end
 	appro_prob = sum(out_comes) / length(out_comes)
-	r = 1-2*appro_prob >= 0 ? sqrt(1-2*appro_prob) : 0.
+	r = 1-2*appro_prob >= 0 ? sqrt(1-2*appro_prob) : sqrt(2*appro_prob-1)
 	# println("exact fidelity is $(abs(cdot(x, y))), approximate fidelity is $r.")
 	return r
 end
