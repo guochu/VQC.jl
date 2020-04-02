@@ -26,7 +26,7 @@ end
 function quantum_gradient_util(f::Function, x)
 	r = []
 	v0 = f(x)
-	sca = 0.5 / v0
+	sca = 0.25 / v0
 	for i in 1:length(x)
 	    # df = differentiate(x[i])
 	    np = nparameters(x[i])
@@ -36,9 +36,9 @@ function quantum_gradient_util(f::Function, x)
 	    	vs = collect_variables(x[i])
 	    	x0 = vs[1] 
 	    	# println("********************************************")
-	    	set_parameters!([x0 + 0.25*pi], x[i])
+	    	set_parameters!([x0 + 0.5*pi], x[i])
 	    	a = f(x)
-	    	set_parameters!([x0 - 0.25*pi], x[i])
+	    	set_parameters!([x0 - 0.5*pi], x[i])
 	    	b = f(x)
 	    	# println("a=$a, b=$b.")
 	    	push!(r, sca*(a * a - b * b))
@@ -71,7 +71,6 @@ println(fidelity_exact(circuit))
 
 println("2--------------------------------------")
 println(grad1 - grad2)
-
 
 
 

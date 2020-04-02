@@ -38,19 +38,19 @@ function differentiate(s::ConjugateGate)
 	end
 end 
 
-differentiate(s::RxGate{<:Variable}) =  RxGate(key(s), s.parameter + 0.5*pi)
+differentiate(s::RxGate{<:Variable}) = OneBodyGate(key(s), 0.5*Rx(value(s.parameter) + pi), check_unitary=false)
 nparameters(s::RxGate{<:Variable}) = 1
 set_parameters_impl!(s::RxGate{<:Variable}, coeff::AbstractVector{<:Number}, start_pos::Int=1) = set_parameters_impl!(
 	s.parameter, coeff, start_pos)
 collect_variables_impl!(a::Vector, b::RxGate{<:Variable}) = push!(a, value(b.parameter))
 
-differentiate(s::RyGate{<:Variable}) = RyGate(key(s), s.parameter + 0.5*pi)
+differentiate(s::RyGate{<:Variable}) = OneBodyGate(key(s), 0.5*Ry(value(s.parameter) + pi), check_unitary=false)
 nparameters(s::RyGate{<:Variable}) = 1
 set_parameters_impl!(s::RyGate{<:Variable}, coeff::AbstractVector{<:Number}, start_pos::Int=1) = set_parameters_impl!(
 	s.parameter, coeff, start_pos)
 collect_variables_impl!(a::Vector, b::RyGate{<:Variable}) = push!(a, value(b.parameter))
 
-differentiate(s::RzGate{<:Variable}) = RzGate(key(s), s.parameter + 0.5*pi)
+differentiate(s::RzGate{<:Variable}) = OneBodyGate(key(s), 0.5*Rz(value(s.parameter) + pi), check_unitary=false)
 nparameters(s::RzGate{<:Variable}) = 1
 set_parameters_impl!(s::RzGate{<:Variable}, coeff::AbstractVector{<:Number}, start_pos::Int=1) = set_parameters_impl!(
 	s.parameter, coeff, start_pos)
@@ -59,7 +59,7 @@ collect_variables_impl!(a::Vector, b::RzGate{<:Variable}) = push!(a, value(b.par
 
 # controled rotation gates
 differentiate(s::CRxGate{<:Variable}) = begin
-    m = permute(reshape(_row_kron(DOWN, Rx(value(s.parameter+0.5*pi))), 2,2,2,2), s.perm)
+    m = permute(reshape(_row_kron(DOWN, 0.5*Rx(value(s.parameter)+pi)), 2,2,2,2), s.perm)
     return TwoBodyGate(key(s), m)
 end 
 set_parameters_impl!(s::CRxGate{<:Variable}, coeff::AbstractVector{<:Number}, start_pos::Int=1) = set_parameters_impl!(
@@ -68,7 +68,7 @@ collect_variables_impl!(a::Vector, b::CRxGate{<:Variable}) = push!(a, value(b.pa
 nparameters(s::CRxGate{<:Variable}) = 1
 
 differentiate(s::CRyGate{<:Variable}) = begin
-    m = permute(reshape(_row_kron(DOWN, Ry(value(s.parameter+0.5*pi))), 2,2,2,2), s.perm)
+    m = permute(reshape(_row_kron(DOWN, 0.5*Ry(value(s.parameter)+pi)), 2,2,2,2), s.perm)
     return TwoBodyGate(key(s), m)
 end 
 set_parameters_impl!(s::CRyGate{<:Variable}, coeff::AbstractVector{<:Number}, start_pos::Int=1) = set_parameters_impl!(
@@ -77,7 +77,7 @@ collect_variables_impl!(a::Vector, b::CRyGate{<:Variable}) = push!(a, value(b.pa
 nparameters(s::CRyGate{<:Variable}) = 1
 
 differentiate(s::CRzGate{<:Variable}) = begin
-    m = permute(reshape(_row_kron(DOWN, Rz(value(s.parameter+0.5*pi))), 2,2,2,2), s.perm)
+    m = permute(reshape(_row_kron(DOWN, 0.5*Rz(value(s.parameter)+pi)), 2,2,2,2), s.perm)
     return TwoBodyGate(key(s), m)
 end 
 set_parameters_impl!(s::CRzGate{<:Variable}, coeff::AbstractVector{<:Number}, start_pos::Int=1) = set_parameters_impl!(

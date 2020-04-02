@@ -32,11 +32,15 @@ const T = [1. 0.; 0. exp(im*pi/4)]
 
 R(k::Int) = [1 0; 0 exp(pi*im/(2^(k-1)))]
 
-Rx(theta::Number) = [cos(theta) -im*sin(theta); -im*sin(theta) cos(theta)]
+_Rx(theta::Number) = [cos(theta) -im*sin(theta); -im*sin(theta) cos(theta)]
+Rx(theta::Number) = _Rx(theta/2)
 
-Ry(theta::Number) = [cos(theta) -sin(theta); sin(theta) cos(theta)]
+_Ry(theta::Number) = [cos(theta) -sin(theta); sin(theta) cos(theta)]
+Ry(theta::Number) = _Ry(theta/2)
 
-Rz(theta::Number) = [exp(-im*theta) 0; 0 exp(im*theta)]
+_Rz(theta::Number) = [exp(-im*theta) 0; 0 exp(im*theta)]
+Rz(theta::Number) = _Rz(theta/2)
+
 
 function CONTROL(u::AbstractMatrix)
 	(size(u, 1) == size(u, 2)) || error("must be a square matrix.")
