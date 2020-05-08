@@ -33,4 +33,4 @@ function _apply_gate_impl(key::Tuple{Int, Int, Int}, op::AbstractArray, qstate::
 	swap!(qstate, j+1, k)
 end
 
-apply_gate!(x::AbstractGate, s::Vector) = _apply_gate_impl(key(x), op(x), s)
+apply_gate_deprecated!(x::AbstractGate, s::Vector) = _apply_gate_impl(key(x), op(x), s)

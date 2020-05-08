@@ -7,7 +7,7 @@ function scalar_type(s::AbstractCircuit)
 	    T = promote_type(T, scalar_type(gate))
 	end
 	return T
-end 
+end
 
 # vector interface
 Base.getindex(x::AbstractCircuit, i::Int) = Base.getindex(data(x), i)
@@ -71,13 +71,29 @@ end
 QCircuit() = QCircuit(Vector{AbstractGate}())
 Base.copy(x::QCircuit) = QCircuit(copy(data(x)))
 
+pos_in_range(key::Int, n::Int) = key >= 1 && key <= n
+function pos_in_range(key::NTuple{N, Int}, n::Int) where N
+	for item in key
+		pos_in_range(item, n) || return false
+	end
+	return true
+end
+
+function pos_in_range(circuit::AbstractCircuit, n::Int)
+	for gate in circuit
+		pos_in_range(key(gate), n) || return false
+	end
+	return true
+end
+
 """
 	apply!(circuit::AbstractCircuit, v::Vector)
 Apply quantum circuit onto quantum state, the quantum state is updated inplace.
 """
 function apply!(circuit::AbstractCircuit, v::Vector)
+	pos_in_range(circuit, nqubits(v)) || error("key out of range.")
 	for gate in circuit
-		apply_gate!(gate, v) 
+		apply_gate!(gate, v)
 	end
 end
 

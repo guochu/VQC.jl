@@ -9,6 +9,7 @@ import LinearAlgebra: dot, norm, ishermitian
 using KrylovKit: exponentiate
 using SparseArrays: spzeros, sparse, SparseMatrixCSC
 using Logging: @warn
+using StaticArrays
 
 
 include("constants.jl")
