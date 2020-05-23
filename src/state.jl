@@ -54,13 +54,17 @@ Example: qstate(Complex{Float64}, [0.5, 0.7])
 """
 function qstate(::Type{T}, mpsstr::AbstractVector{<:Real}) where {T <: Number}
 	isempty(mpsstr) && error("no state")
-	if length(mpsstr) == 1
-	    v = kernal_mapping(mpsstr[1])
-	else
-		v = kron(kernal_mapping.(reverse(mpsstr))...)
-	end
-	return Vector{T}(v)
+    return reset!(qstate(T, length(mpsstr)), mpsstr)
 end
+# function qstate(::Type{T}, mpsstr::AbstractVector{<:Real}) where {T <: Number}
+# 	isempty(mpsstr) && error("no state")
+# 	if length(mpsstr) == 1
+# 	    v = kernal_mapping(mpsstr[1])
+# 	else
+# 		v = kron(kernal_mapping.(reverse(mpsstr))...)
+# 	end
+# 	return Vector{T}(v)
+# end
 
 """
 	qstate(thetas::AbstractVector{<:Real}) = qstate(Complex{Float64}, thetas)
@@ -82,9 +86,19 @@ function reset!(x::AbstractVector)
 end
 
 function reset!(x::AbstractVector, i::AbstractVector{Int})
+    (nqubits(x) == length(i)) || error("input basis mismatch with number of qubits.")
     idx = sub2ind([2 for i in 1:length(i)], i)
     fill!(x, zero(eltype(x)))
     x[idx+1] = one(eltype(x))
+    return x
+end
+
+function reset!(x::AbstractVector, i::AbstractVector{<:AbstractFloat})
+    (nqubits(x) == length(i)) || error("input basis mismatch with number of qubits.")
+    mpsstr = kernal_mapping.(i)
+    for (pos, item) in enumerate(Iterators.product(mpsstr...))
+        x[pos] = prod(item)
+    end
     return x
 end
 

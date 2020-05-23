@@ -64,11 +64,17 @@ function state_grad_probabilities(L::Int, depth::Int)
 	return check_gradient(loss, initial_state)
 end
 
+function qstate_grad(::Type{T}, L::Int) where {T<:Number}
+	target_state = qstate(T, L)
+	loss(v) = abs(dot(target_state, qstate(T, v)))
+	return check_gradient(loss, randn(L))
+end
+
 @testset "gradient of quantum state with loss function real(dot(a, circuit*x))" begin
 	for L in 2:5
 		for depth in 0:5
 		    @test state_grad_dot_real(L, depth)
-		end	    
+		end
 	end
 end
 
@@ -76,7 +82,7 @@ end
 	for L in 2:5
 		for depth in 0:5
 		    @test state_grad_dot_imag(L, depth)
-		end	    
+		end
 	end
 end
 
@@ -84,7 +90,7 @@ end
 	for L in 2:5
 		for depth in 0:5
 		    @test state_grad_dot_abs(L, depth)
-		end	    
+		end
 	end
 end
 
@@ -92,7 +98,7 @@ end
 	for L in 2:5
 		for depth in 0:5
 		    @test state_grad_distance(L, depth)
-		end	    
+		end
 	end
 end
 
@@ -100,6 +106,14 @@ end
 	for L in 2:5
 		for depth in 0:5
 		    @test state_grad_probabilities(L, depth)
-		end	    
+		end
+	end
+end
+
+@testset "gradient of quantum state initializer qstate" begin
+	for L in 2:5
+		for T in [Float64, Complex{Float64}]
+		    @test qstate_grad(T, L)
+		end
 	end
 end
