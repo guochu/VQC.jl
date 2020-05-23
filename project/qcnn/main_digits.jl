@@ -22,7 +22,7 @@ using Flux.Optimise
 using BenchmarkTools
 
 function read_digits()
-	data = JSON.parsefile("/Users/guochu/Documents/QuantumSimulator/Meteor.jl/project/seq2seq/digits/digits.txt")
+	data = JSON.parsefile("digits.txt")
 	x, y = data["x"], data["y"]
 	x = [[item...] for item in x]
 	y = [y...]
