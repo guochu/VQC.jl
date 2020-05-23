@@ -146,7 +146,7 @@ end
 
 distance(x::AbstractVector, y::AbstractVector) = dot(x, x) + dot(y, y) - 2 * dot(x, y)
 
-function train_single(depth::Int=9, learn_rate::Real=0.01)
+function train_single(depth::Int=9, learn_rate::Real=0.05)
     p = 0.8
     x_train, y_train, x_test, y_test = prepare_digits_data(p)
 
@@ -203,7 +203,7 @@ function train_single(depth::Int=9, learn_rate::Real=0.01)
         return parameters(circuit1, circuit2, m)
     end
 
-    epochs = 1000
+    epochs = 500
 
     train(epochs)
 
