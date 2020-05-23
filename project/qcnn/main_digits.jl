@@ -128,16 +128,13 @@ function conv_net(input::Array{<:Real, 2}, circuit1, circuit2, m)   # first quan
     # convert into 0 and 1s
     # println(size(out1))
 
+	# # maximum pooling
+    out2 = max_pooling(out1, (3,3), 0)
+
     # second quantum conv layer
-    out2 = circuit2 * out1
+    out3 = circuit2 * out2
     # println(size(out2))
 
-    # # maximum pooling
-    # v = max_pooling(relu.(out2))
-    out3 = max_pooling(out2, (3,3), 0)
-    # println(size(out3))
-#     # fully connected layer
-#     v = m * v
 
 #     # softmax
 #     v = softmax(v)
