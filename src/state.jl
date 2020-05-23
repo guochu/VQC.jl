@@ -19,28 +19,32 @@ renormalize!(s::AbstractVector) = begin
     tol = 1.0e-12
     sn <= tol && error("quantum state norm is small than $tol")
     s.data ./= sn
-end 
+end
 
 renormalize(s::AbstractVector) = s / norm(s)
 
 function distance2(x::AbstractVector, y::AbstractVector)
-    sA = dot(x, x)
-    sB = dot(y, y)
-    c = dot(x, y)
+    sA = cdot(x, x)
+    sB = cdot(y, y)
+    c = cdot(x, y)
     r = real(sA+sB-2*c)
     return abs(r)
-end 
+end
 
 distance(x::AbstractVector, y::AbstractVector) = sqrt(distance2(x, y))
 
 # expectation(a::AbstractVector, circuit::AbstractCircuit, b::AbstractVector) = dot(a, circuit * b)
 
 nqubits(s::AbstractVector) = begin
-    n = round(Int, log2(length(s))) 
+    n = round(Int, log2(length(s)))
     (2^n == length(s)) || error("state can not be interpretted as a qubit state.")
     return n
-end 
+end
 
+"""
+    kernal_mapping(s::Real) = [cos(s*pi/2), sin(s*pi/2)]
+    This maps 0 -> [1, 0] (|0>), and 1 -> [0, 1] (|1>)
+"""
 kernal_mapping(s::Real) = [cos(s*pi/2), sin(s*pi/2)]
 
 """
@@ -68,7 +72,9 @@ qstate(mpsstr::AbstractVector{<:Real}) = qstate(Complex{Float64}, mpsstr)
 	qstate(::Type{T}, n::Int) where {T <: Number}
 Return a product quantum state of [[1, 0] for _ in 1:n] for theta in thetas]
 """
-qstate(::Type{T}, n::Int) where {T <: Number} = qstate(T, [0 for _ in 1:n])
+qstate(::Type{T}, n::Int) where {T <: Number} = onehot(T, 2^n, 1)
+# qstate(::Type{T}, n::Int) where {T <: Number} = qstate(T, [0 for _ in 1:n])
+
 
 """
 	qstate(n::Int) = qstate(Complex{Float64}, n)
@@ -86,7 +92,7 @@ end
 
 onehot(L::Int, pos::Int) = onehot(Complex{Float64}, L, pos)
 
-function qrandn(::Type{T}, n::Int) where {T <: Number} 
+function qrandn(::Type{T}, n::Int) where {T <: Number}
 	(n >= 1) || error("number of qubits must be positive.")
 	v = randn(T, 2^n)
 	v ./= norm(v)
@@ -96,17 +102,19 @@ end
 qrandn(n::Int) = qrandn(Complex{Float64}, n)
 
 """
-	amplitude(s::AbstractVector, i::AbstractVector{Int}) 
+	amplitude(s::AbstractVector, i::AbstractVector{Int})
 Return a single amplitude of the quantum state
 """
-function amplitude(s::AbstractVector, i::AbstractVector{Int}) 
+function amplitude(s::AbstractVector, i::AbstractVector{Int}; scaling::Real=sqrt(2))
 	(length(i)==nqubits(s)) || error("basis mismatch with number of qubits.")
 	for s in i
 	    (s == 0 || s == 1) || error("qubit state must be 0 or 1.")
 	end
-	cudim = dim2cudim_col(Tuple([2 for _ in 1:length(i)]))
-	idx = mind2sind_col(i, cudim)
-	return s[idx+1]
+	# cudim = dim2cudim_col(Tuple([2 for _ in 1:length(i)]))
+	# idx = mind2sind_col(i, cudim)
+	# return s[idx+1]
+    idx = sub2ind([2 for i in 1:length(i)], i)
+    return scaling==1 ? s[idx+1] : s[idx+1] * scaling^(nqubits(s))
 end
 
 """
@@ -115,6 +123,6 @@ Return all amplitudes of the quantum state
 """
 amplitudes(s::AbstractVector) = s
 
-probabilities(s::AbstractVector) = (abs.(s)).^2
+probabilities(s::AbstractVector) = abs2.(s)
 
-probability(s::AbstractVector, i::AbstractVector{Int}) = abs(amplitude(s, i))^2
+probability(s::AbstractVector, i::AbstractVector{Int}) = abs2(amplitude(s, i))
