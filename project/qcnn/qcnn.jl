@@ -75,13 +75,16 @@ function qcnn_single_filter(m::Array{<:Real, 3}, circuit::QCircuit, filter_shape
 	out = Array{Float64, 3}(undef, n1-s1+1, n2-s2+1, n3)
 	L = s1 * s2
 	ob = _observer(L)
+	state_a = qstate(Float64, L)
 	for i in 1:(n1-s1+1)
 		for j in 1:(n2-s2+1)
 			for k in 1:n3
-				state_a = qstate(Float64, reshape(m[i:(i+s1-1), j:(j+s2-1), k], s1*s2))
+				# state_a = qstate(Float64, reshape(m[i:(i+s1-1), j:(j+s2-1), k], s1*s2))
+				reset!(state_a, reshape(m[i:(i+s1-1), j:(j+s2-1), k], L))
 				# out[i, j, k] = dot(state_b, circuit * state_a)^2
-                tmp_state = circuit * state_a
-				out[i, j, k] = dot(tmp_state, ob * tmp_state)
+                # tmp_state = circuit * state_a
+				apply!(circuit, state_a)
+				out[i, j, k] = dot(state_a, ob, state_a)
 			end
 	    end
 	end
@@ -91,6 +94,30 @@ end
 qcnn_single_filter(m::Array{<:Real, 2}, circuit, filter_shape) = qcnn_single_filter(
 	reshape(m, size(m,1), size(m,2), 1), circuit, filter_shape)
 
+_expec(op, x) = real(dot(x, op, x))
+@adjoint _expec(op, x) = _expec(op, x), z -> (nothing, (2 * real(z)) .* (op * x),)
+
+
+# _rqstate(v) = qstate(Float64, v)
+# function _single_filter(circuit, v, op)
+#     wspace = _rqstate(reshape(v, length(v)))
+# 	return _expec(op, circuit * wspace)
+# end
+
+# @adjoint _single_filter(op, circuit, v, wspace) = begin
+# 	new_circuit = copy(circuit)
+# 	append!(new_circuit, [RyGate(i, Variable(theta*pi)) for (i, theta) in enumerate(v)])
+# 	reset!(wspace)
+# 	apply!(new_circuit, wspace)
+# 	r, f = Zygote.pullback(_expec, op, wspace)
+# 	return r, z -> begin
+# 		zt = f(z)[2]
+# 		tmp, grad, zt = backward_evolution(wspace, new_circuit, zt)
+# 		# L = length(grad)
+# 		n = length(v)
+# 		return nothing, grad[1:n], grad[n:end] .* pi, nothing
+# 	end
+# end
 
 @adjoint qcnn_single_filter(m::Array{<:Real, 3}, circuit::QCircuit, filter_shape::Tuple{Int, Int}) = begin
 	n1, n2, n3 = size(m)
@@ -100,10 +127,11 @@ qcnn_single_filter(m::Array{<:Real, 2}, circuit, filter_shape) = qcnn_single_fil
 	dout = Array{Any, 3}(undef, n1-s1+1, n2-s2+1, n3)
 	L = s1 * s2
 	ob = _observer(L)
-	f(c, a) = begin
-        tmp_state = c * qstate(Float64, reshape(a, L))
-        return dot(tmp_state, ob * tmp_state)
-    end
+	# f(c, a) = begin
+    #     tmp_state = c * qstate(Float64, reshape(a, L))
+    #     return _expec(ob, tmp_state)
+    # end
+	f(c, a) = _expec(ob, c * qstate(Float64, reshape(a, length(a))) )
 	for i in 1:(n1-s1+1)
 		for j in 1:(n2-s2+1)
 			for k in 1:n3
