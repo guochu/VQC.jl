@@ -1,5 +1,5 @@
 export qstate, qrandn, distance, distance2, vdot, cdot, onehot, nqubits, qcat
-export amplitude, amplitudes, probability, probabilities
+export amplitude, amplitudes, probability, probabilities, reset!
 
 cdot(x::AbstractArray, y::AbstractArray) = dot(x, y)
 
@@ -75,6 +75,18 @@ Return a product quantum state of [[1, 0] for _ in 1:n] for theta in thetas]
 qstate(::Type{T}, n::Int) where {T <: Number} = onehot(T, 2^n, 1)
 # qstate(::Type{T}, n::Int) where {T <: Number} = qstate(T, [0 for _ in 1:n])
 
+function reset!(x::AbstractVector)
+    fill!(x, zero(eltype(x)))
+    x[1] = one(eltype(x))
+    return x
+end
+
+function reset!(x::AbstractVector, i::AbstractVector{Int})
+    idx = sub2ind([2 for i in 1:length(i)], i)
+    fill!(x, zero(eltype(x)))
+    x[idx+1] = one(eltype(x))
+    return x
+end
 
 """
 	qstate(n::Int) = qstate(Complex{Float64}, n)
