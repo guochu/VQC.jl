@@ -223,7 +223,7 @@ function train_single(nlabel::Int, nitr::Int, id::Int, learn_rate::Real=0.01, de
 #               println("loss at step $i is $(loss(circuit1, circuit2, m))")
             end
         end
-        filename = "result/MNISTnlabel$(nlabel)alpha$(alpha)epochs$(epochs)index$(index).json"
+        filename = "result/MNISTnlabel$(nlabel)alpha$(learn_rate)epochs$(epochs)index$(index).json"
         println("save data to path $path_name.")
         r = JSON.json(Dict("accuracy"=>results, "loss"=>los))
         open(filename, "w") do f
