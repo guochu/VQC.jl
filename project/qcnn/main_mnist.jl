@@ -177,7 +177,7 @@ function train_single(nlabel::Int, nitr::Int, id::Int, learn_rate::Real=0.01, de
     circuit1 = QCNNLayer(crs1, (3, 3), padding=0)
     crs2 = [real_variational_circuit_1d(3*3, depth) for i in 1:2]
     circuit2 = QCNNLayer(crs2, (3, 3), padding=0)
-    m = randn(2, length(crs1) * length(crs2))
+    m = randn(nlabel, length(crs1) * length(crs2))
     x0 = parameters(circuit1, circuit2, m)
     println("total number of parameters $(length(x0)).")
     println("number of parameters in the last layer $(length(m)).")
