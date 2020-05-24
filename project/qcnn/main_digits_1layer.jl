@@ -144,7 +144,7 @@ function train_single(depth::Int=9, learn_rate::Real=0.05)
     p = 0.8
     x_train, y_train, x_test, y_test = prepare_digits_data(p)
 
-    crs1 = [real_variational_circuit_1d(3*3, depth) for i in 1:4]
+    crs1 = [real_variational_circuit_1d(3*3, depth) for i in 1:2]
     circuit1 = QCNNLayer(crs1, (3, 3), padding=0)
     m = randn(10, 16 * length(crs1))
     x0 = parameters(circuit1, m)

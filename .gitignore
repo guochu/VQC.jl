@@ -3,4 +3,5 @@
 data/
 result/
 *.json
+*.txt
 docs/build/
