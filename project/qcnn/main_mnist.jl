@@ -169,7 +169,7 @@ end
 distance(x::AbstractVector, y::AbstractVector) = dot(x, x) + dot(y, y) - 2 * dot(x, y)
 
 function train_single(nlabel::Int, nitr::Int, id::Int, learn_rate::Real=0.01, depth::Int=9)
-    println("parameters nlabel=$nlabel, epochs=$nitr, learn rate=$learn_rate, circuit depth=$depth, index=$index.")
+    println("parameters nlabel=$nlabel, epochs=$nitr, learn rate=$learn_rate, circuit depth=$depth, index=$id.")
 
     x_train, y_train, x_test, y_test = prepare_mnist_data(nlabel)
 
