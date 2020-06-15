@@ -3,8 +3,6 @@ push!(LOAD_PATH, "../../src")
 
 include("qcnn.jl")
 
-using MLDatasets
-using Statistics: mean
 using LinearAlgebra: norm, dot
 
 using JSON
@@ -22,23 +20,14 @@ using Flux
 using Flux.Optimise
 using BenchmarkTools
 
-function squeeze(x::AbstractMatrix)
-    r = zeros(7, 7)
-    for j in 1:7
-        for i in 1:7
-            r[i, j] = mean(x[4*(i-1)+1:4*i, 4*(j-1)+1:4*j])
-        end
-    end
-    return r
-end
 
 function select_indexes(x, y, n::Int)
     x_less = []
     y_less = []
     for (i, item) in enumerate(y)
         if item in 0:n-1
-            push!(x_less, squeeze(x[i]))
-            push!(y_less, item)
+            push!(x_less, x[i])
+            push!(y_less, Flux.onehot(item, 0:n-1))
         end
     end
     return [x_less...], [y_less...]
@@ -50,36 +39,18 @@ function shuffle_data(x, y)
     return x[n], y[n]
 end
 
-function read_mnist()
-    x_train, y_train = MNIST.traindata()
-	x_test, y_test  = MNIST.testdata()
-
-	x_train = [x_train[:, :, i]/norm(x_train[:, :, i]) for i in 1:size(x_train, 3)]
-	x_test = [x_test[:, :, i]/norm(x_test[:, :, i]) for i in 1:size(x_test, 3)]
-
-    return x_train, y_train, x_test, y_test
-end
-
-function processing_data(x_train, y_train, x_test, y_test, n::Int)
+function read_mnist_data(n::Int)
+    result = nothing
+    open("mnist_data.txt", "r") do f
+        result = JSON.parse(f)
+    end
+    x_train, y_train, x_test, y_test = result["xtrain"], result["ytrain"], result["xtest"], result["ytest"]
+    x_train = [hcat([[v...] for v in item]...) for item in x_train]
+    x_test = [hcat([[v...] for v in item]...) for item in x_test]
     x_train, y_train = select_indexes(x_train, y_train, n)
     x_test, y_test = select_indexes(x_test, y_test, n)
-    y_train = [Flux.onehot(item, 0:n-1) for item in y_train]
-    y_test = [Flux.onehot(item, 0:n-1) for item in y_test]
-    x_train, y_train = shuffle_data(x_train, y_train)
-    m = 250 * n
-    x_train, y_train = x_train[1:m], y_train[1:m]
-    x_test, y_test = shuffle_data(x_test, y_test)
-    x_test, y_test = x_test[1:m], y_test[1:m]
-    println("number of training $(length(x_train)), number of testing $(length(x_test)).")
-    println("start training...")
     return x_train, y_train, x_test, y_test
 end
-
-function prepare_mnist_data(nlabel::Int)
-    x_train, y_train, x_test, y_test = read_mnist()
-    return processing_data(x_train, y_train, x_test, y_test, nlabel)
-end
-
 
 max_pooling(a::Array{Float64, 3}) = begin
     b = maximum(a, dims=[1,2])
@@ -171,7 +142,7 @@ distance(x::AbstractVector, y::AbstractVector) = dot(x, x) + dot(y, y) - 2 * dot
 function train_single(nlabel::Int, nitr::Int, id::Int, learn_rate::Real=0.01, depth::Int=9)
     println("parameters nlabel=$nlabel, epochs=$nitr, learn rate=$learn_rate, circuit depth=$depth, index=$id.")
 
-    x_train, y_train, x_test, y_test = prepare_mnist_data(nlabel)
+    x_train, y_train, x_test, y_test = read_mnist_data(nlabel)
 
     crs1 = [real_variational_circuit_1d(3*3, depth) for i in 1:2]
     circuit1 = QCNNLayer(crs1, (3, 3), padding=0)
@@ -181,6 +152,7 @@ function train_single(nlabel::Int, nitr::Int, id::Int, learn_rate::Real=0.01, de
     x0 = parameters(circuit1, circuit2, m)
     println("total number of parameters $(length(x0)).")
     println("number of parameters in the last layer $(length(m)).")
+    println("number of training $(length(x_train)), number of testing $(length(x_test)).")
     loss(c1, c2, ma) = begin
         r = 0.
         for i in 1:length(x_train)
