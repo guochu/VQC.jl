@@ -108,6 +108,8 @@ Return a product quantum state of [[1, 0] for _ in 1:n] for theta in thetas]
 """
 qstate(n::Int) = qstate(Complex{Float64}, n)
 
+statevector(args...) = qstate(args...)
+
 qcat(v::AbstractVector...) = kron(reverse(v)...)
 
 function onehot(::Type{T}, L::Int, pos::Int) where T
