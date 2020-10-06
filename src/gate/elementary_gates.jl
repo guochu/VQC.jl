@@ -59,12 +59,12 @@ const SWAP = [1. 0. 0. 0.; 0. 0. 1. 0.; 0. 1. 0. 0.; 0. 0. 0. 1.]
 const iSWAP = [1. 0. 0. 0.; 0. 0. im 0.; 0. im 0. 0.; 0. 0. 0. 1.]
 
 # three body gates
-function CONTROLCONTROL(u::AbstractMatrix) 
+function CONTROLCONTROL(u::AbstractMatrix)
 	(size(u, 1) == size(u, 2)) || error("must be a square matrix.")
 	(size(u, 1) == 2) || error("input matrix must be 2 by 2")
 	Iu = eye(2)
-	return _row_kron(Iu, _row_kron(UP, UP)) + _row_kron(Iu, _row_kron(UP, DOWN)) + 
-	_row_kron(Iu, _row_kron(DOWN, UP)) + _row_kron(u, _row_kron(DOWN, DOWN))
+	return _row_kron(_row_kron(UP, UP), Iu) + _row_kron(_row_kron(UP, DOWN), Iu) +
+	_row_kron(_row_kron(DOWN, UP), Iu) + _row_kron(_row_kron(DOWN, DOWN), u)
 end
 
 const TOFFOLI = CONTROLCONTROL(X)
