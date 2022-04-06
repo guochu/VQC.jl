@@ -9,3 +9,6 @@
   * **Flexiable operations on quantum gates and quantum circuits**. Quantum circuit and quantum gates suport operations such as adjoint, transpose, conjugate, shift to make life easier when building very complex circuits.
 
   * **Zygote as backend for auto differentiation**. VQC use Zygote as backend for auto differentiation.
+
+
+In developing stage...
