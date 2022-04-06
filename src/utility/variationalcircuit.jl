@@ -1,68 +1,86 @@
 export variational_circuit, variational_circuit_1d, variational_circuit_2d
 
-function linear_index(shape::Tuple{Int, Int}, positions::Tuple{Int, Int}, rowmajor::Bool=true)
-	i, j = positions
-	(i<=shape[1] && j<=shape[2]) || error("index out of range.")
-	if rowmajor 
-		return (i-1)*shape[2] + j
-	else
-		return (j-1)*shape[1] + i
-	end	
-end
+# function linear_index(shape::Tuple{Int, Int}, positions::Tuple{Int, Int}, rowmajor::Bool=true)
+# 	i, j = positions
+# 	(i<=shape[1] && j<=shape[2]) || error("index out of range.")
+# 	if rowmajor 
+# 		return (i-1)*shape[2] + j
+# 	else
+# 		return (j-1)*shape[1] + i
+# 	end	
+# end
 
+variational_circuit_nparameters(L::Int, depth::Int) = (depth+1) * L * 3
 
-function variational_circuit_1d(L::Int, depth::Int, g::Function=rand)
+"""
+	variational_circuit_1d(L::Int, depth::Int, paras::Vector{<:Real})
+Return a variational quantum circuit given L qubis and d depth
+"""
+function variational_circuit_1d(L::Int, depth::Int, paras::Vector{<:Real}=rand(variational_circuit_nparameters(L, depth)) .* 2π)
+	(length(paras) == variational_circuit_nparameters(L, depth)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
+	ncount = 1
 	for i in 1:L
-		add!(circuit, RzGate(i, Variable(g())))
-		add!(circuit, RyGate(i, Variable(g())))
-		add!(circuit, RzGate(i, Variable(g())))
+		push!(circuit, RzGate(i, paras[ncount], isparas=true))
+		ncount += 1
+		push!(circuit, RyGate(i, paras[ncount], isparas=true))
+		ncount += 1
+		push!(circuit, RzGate(i, paras[ncount], isparas=true))
+		ncount += 1
 	end
 	for i in 1:depth
 		for j in 1:(L-1)
-		    add!(circuit, CNOTGate((j, j+1)))
+		    push!(circuit, CNOTGate(j, j+1))
 		end
 		for j in 1:L
-			add!(circuit, RzGate(j, Variable(g())))
-			add!(circuit, RyGate(j, Variable(g())))
-			add!(circuit, RzGate(j, Variable(g())))
+			push!(circuit, RzGate(j, paras[ncount], isparas=true))
+			ncount += 1
+			push!(circuit, RyGate(j, paras[ncount], isparas=true))
+			ncount += 1
+			push!(circuit, RzGate(j, paras[ncount], isparas=true))
+			ncount += 1
 		end
 	end
+	@assert ncount == length(paras)+1
 	return circuit	
 end
-
-"""
-	variational_circuit(L::Int, d::Int, g::Function=rand)
-Return a variational quantum circuit given L qubis and d depth
-"""
-variational_circuit(L::Int, depth::Int, g::Function=rand) = variational_circuit_1d(L, depth, g)
+variational_circuit(args...) = variational_circuit_1d(args...)
 
 
-function variational_circuit_2d(m::Int, n::Int, depth::Int, g::Function=rand)
+function variational_circuit_2d(m::Int, n::Int, depth::Int, paras::Vector{<:Real}=rand(variational_circuit_nparameters(m*n, depth)) .* 2π)
 	L = m*n
+	(length(paras) == variational_circuit_nparameters(L, depth)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
+	ncount = 1
 	for i in 1:L
-		add!(circuit, RzGate(i, Variable(g())))
-		add!(circuit, RyGate(i, Variable(g())))
-		add!(circuit, RzGate(i, Variable(g())))
+		push!(circuit, RzGate(i, paras[ncount], isparas=true))
+		ncount += 1
+		push!(circuit, RyGate(i, paras[ncount], isparas=true))
+		ncount += 1
+		push!(circuit, RzGate(i, paras[ncount], isparas=true))
+		ncount += 1
 	end	
-	sp = (m, n)
+	index = LinearIndices((m, n))
 	for l in 1:depth
 		for i in 1:m
 		    for j in 1:(n-1)
-		        add!(circuit, CNOTGate((linear_index(sp, (i, j)), linear_index(sp, (i, j+1)))))
+		        push!(circuit, CNOTGate(index[i, j], index[i, j+1]))
 		    end
 		end
 		for i in 1:(m-1)
 		    for j in 1:n
-		        add!(circuit, CNOTGate((linear_index(sp, (i, j)), linear_index(sp, (i+1, j)))))
+		        push!(circuit, CNOTGate(index[i, j], index[i+1, j]))
 		    end
 		end
 		for i in 1:L
-			add!(circuit, RzGate(i, Variable(g())))
-			add!(circuit, RyGate(i, Variable(g())))
-			add!(circuit, RzGate(i, Variable(g())))
+			push!(circuit, RzGate(i, paras[ncount], isparas=true))
+			ncount += 1
+			push!(circuit, RyGate(i, paras[ncount], isparas=true))
+			ncount += 1
+			push!(circuit, RzGate(i, paras[ncount], isparas=true))
+			ncount += 1
 		end	
 	end
+	@assert ncount == length(paras)+1
 	return circuit
 end

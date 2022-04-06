@@ -1,73 +1,77 @@
-using VQC: qstate, qrandn, simple_gradient, distance, check_gradient, probabilities
-using VQC: variational_circuit_1d
-using LinearAlgebra: dot
-
-using Zygote
 
 """
 	state gradient with distance loss function
 """
 function state_grad_dot_real(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = rand_state(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = real(dot(target_state, circuit * x))
-	return check_gradient(loss, initial_state)
+	loss_fd(θs) = loss(StateVector(θs))
+
+	grad1 = gradient(loss, initial_state)[1]
+	grad2 = fdm_gradient(loss_fd, amplitudes(initial_state))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 """
 	state gradient with distance loss function
 """
 function state_grad_dot_imag(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = rand_state(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = imag(dot(target_state, circuit * x))
-	return check_gradient(loss, initial_state)
+	loss_fd(θs) = loss(StateVector(θs))
+
+	grad1 = gradient(loss, initial_state)[1]
+	grad2 = fdm_gradient(loss_fd, amplitudes(initial_state))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 """
 	state gradient with distance loss function
 """
 function state_grad_dot_abs(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = rand_state(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = abs(dot(target_state, circuit * x))
-	return check_gradient(loss, initial_state)
+	loss_fd(θs) = loss(StateVector(θs))
+
+	grad1 = gradient(loss, initial_state)[1]
+	grad2 = fdm_gradient(loss_fd, amplitudes(initial_state))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 """
 	state gradient with distance loss function
 """
 function state_grad_distance(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = rand_state(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = distance(target_state, circuit * x)
-	return check_gradient(loss, initial_state)
+	loss_fd(θs) = loss(StateVector(θs))
+
+	grad1 = gradient(loss, initial_state)[1]
+	grad2 = fdm_gradient(loss_fd, amplitudes(initial_state))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
-"""
-	state gradient with distance loss function
-"""
-function state_grad_probabilities(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
-	circuit =  variational_circuit_1d(L, depth)
-
-	loss(x) = sum(probabilities(circuit * x))
-	return check_gradient(loss, initial_state)
-end
 
 function qstate_grad(::Type{T}, L::Int) where {T<:Number}
-	target_state = qstate(T, L)
-	loss(v) = abs(dot(target_state, qstate(T, v)))
-	return check_gradient(loss, randn(L))
+	target_state = rand_state(T, L)
+	loss(v) = abs(dot(target_state, qubit_encoding(T, v)))
+	x = randn(L)
+
+	grad1 = gradient(loss, x)[1]
+	grad2 = fdm_gradient(loss, x)
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 @testset "gradient of quantum state with loss function real(dot(a, circuit*x))" begin
@@ -102,13 +106,6 @@ end
 	end
 end
 
-@testset "gradient of quantum state with loss function sum(probabilities(circuit*x))" begin
-	for L in 2:5
-		for depth in 0:5
-		    @test state_grad_probabilities(L, depth)
-		end
-	end
-end
 
 @testset "gradient of quantum state initializer qstate" begin
 	for L in 2:5

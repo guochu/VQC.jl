@@ -1,21 +1,20 @@
-using VQC: qstate, qrandn, simple_gradient, distance, check_gradient
-using VQC: variational_circuit_1d
-using LinearAlgebra: dot
 
-using Zygote
 
 
 """
 	circuit gradient with dot loss function
 """
 function circuit_grad_dot_real(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = StateVector(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = real(dot(target_state, x * initial_state))
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
 
-	return check_gradient(loss, circuit)
+	grad1 = gradient(loss, circuit)[1]
+	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 
@@ -23,36 +22,48 @@ end
 	circuit gradient with dot loss function
 """
 function circuit_grad_dot_imag(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = StateVector(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = imag(dot(target_state, x * initial_state))
-	return check_gradient(loss, circuit)
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+
+	grad1 = gradient(loss, circuit)[1]
+	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 """
 	circuit gradient with dot loss function
 """
 function circuit_grad_dot_abs(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = StateVector(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = abs(dot(target_state, x * initial_state))
-	return check_gradient(loss, circuit)
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+
+	grad1 = gradient(loss, circuit)[1]
+	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 """
 	circuit gradient with dot loss function
 """
 function circuit_grad_dot_abs2(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = StateVector(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = abs2(dot(target_state, x * initial_state))
-	return check_gradient(loss, circuit)
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+
+	grad1 = gradient(loss, circuit)[1]
+	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 
@@ -60,12 +71,16 @@ end
 	circuit gradient with distance loss function
 """
 function circuit_grad_distance(L::Int, depth::Int)
-	target_state = qrandn(Complex{Float64}, L)
-	initial_state = qstate(Complex{Float64}, L)
+	target_state = rand_state(ComplexF64, L)
+	initial_state = StateVector(ComplexF64, L)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = distance(target_state, x * initial_state)
-	return check_gradient(loss, circuit)
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+
+	grad1 = gradient(loss, circuit)[1]
+	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
+	return maximum(abs.(grad1 - grad2)) < 1.0e-6
 end
 
 

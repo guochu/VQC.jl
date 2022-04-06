@@ -1,5 +1,3 @@
-using VQC: qstate, QCircuit, measure!, measure
-using VQC: add!, H, CONTROL, extend!, QFT, apply!, qvalues
 
 function to_digits(s::Vector{Int})
 	r = 0.
@@ -15,22 +13,22 @@ function phase_estimate_circuit(j::Vector{Int})
 	phi = to_digits(j)
 	U = [exp(2*pi*im*phi) 0; 0. 1.]
 	for i = 1:L
-		add!(circuit, (i, H))
+		push!(circuit, (i, H))
 	end
 
 	tmp = U
 	for i = L:-1:1
-		add!(circuit, ((i, L+1), CONTROL(tmp)))
+		push!(circuit, ((i, L+1), Gates.CONTROL(tmp)))
 		tmp = tmp * tmp
 	end
-	extend!(circuit, QFT(L)')
+	push!(circuit, QFT(L)')
 	return circuit
 end
 
 
 function simple_phase_estimation_1(L::Int, auto_reset::Bool=false)
 	j = rand(0:1, L)
-	state = qstate(L+1)
+	state = StateVector(L+1)
 	phi = to_digits(j)
 	circuit = phase_estimate_circuit(j)
 	apply!(circuit, state)
@@ -46,7 +44,7 @@ end
 function simple_phase_estimation_2(L::Int)
 
 	j = rand(0:1, L)
-	state = qstate(L+1)
+	state = StateVector(L+1)
 	phi = to_digits(j)
 	circuit = phase_estimate_circuit(j)
 	apply!(circuit, state)
@@ -56,7 +54,7 @@ function simple_phase_estimation_2(L::Int)
 		push!(res, i)
 	end
 	phi_out = to_digits(res)
-	return length(state)==1 && isapprox(state[1], 1, atol=1.0e-10) && (phi == phi_out) && (j[1:L] == res[1:L])
+	return length(storage(state))==1 && isapprox(state[1], 1, atol=1.0e-10) && (phi == phi_out) && (j[1:L] == res[1:L])
 end
 
 @testset "simple phase estimation" begin

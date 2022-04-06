@@ -1,38 +1,65 @@
 module VQC
 
+
+# statevector
+export StateVector, distance, distance2, onehot_encoding, qubit_encoding, reset!, amplitude, amplitudes, dot, norm, normalize!, normalize
+export reset_qubit!, reset_onehot!, rand_state, storage
+# gate operations
+export apply!
+
+# measurement
+export measure, measure!
+
+
+# hamiltonian
+export expectation
+
+# AD for post selection may be removed in the future
+export post_select, post_select!
+
+
 using Zygote
 using Zygote: @adjoint
 
-import Base.+, Base.-, Base.*, Base./
-import LinearAlgebra: dot, norm, ishermitian
+
+using LinearAlgebra, StaticArrays, QuantumCircuits, QuantumCircuits.Gates
+import LinearAlgebra, QuantumCircuits
 
 using KrylovKit: exponentiate
-using SparseArrays: spzeros, sparse, SparseMatrixCSC
-using Logging: @warn
-using StaticArrays
+# using SparseArrays: spzeros, sparse, SparseMatrixCSC
+# using Logging: @warn
 
 
-include("constants.jl")
-include("misc/misc.jl")
+# auxiliary
+include("auxiliary/distance.jl")
+include("auxiliary/parallel_for.jl")
+include("auxiliary/sampling.jl")
+include("auxiliary/tensorops.jl")
 
-include("defs.jl")
-include("state.jl")
-include("gate/gate.jl")
+# definitions of quantum gate
+include("statevector.jl")
 
-include("circuit/circuit.jl")
-include("observer/observer.jl")
+# quantum gate operations
+include("applygates/applygates.jl")
+
+
+# measurement and postselection
+include("measure.jl")
+include("postselect.jl")
+
+# hamiltonian expectation
+include("hamiltonian/util.jl")
+include("hamiltonian/apply_qterms/apply_qterms.jl")
+include("hamiltonian/expecs/expecs.jl")
+
 
 # differentiation
-include("diff/differentiation.jl")
-include("diff/autodiff.jl")
+include("circuitdiff.jl")
+include("additional_adjoints.jl")
 
-include("ham/ham.jl")
-include("ctrlham/ctrlham.jl")
 
 # utility functions
 include("utility/utility.jl")
 
-# chain operation
-include("chain.jl")
 
 end
