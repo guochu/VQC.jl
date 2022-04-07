@@ -1,6 +1,20 @@
 module VQC
 
 
+using Zygote
+using Zygote: @adjoint
+
+
+using LinearAlgebra, StaticArrays, QuantumCircuits, QuantumCircuits.Gates
+import LinearAlgebra, QuantumCircuits
+
+# using KrylovKit: exponentiate
+# using SparseArrays: spzeros, sparse, SparseMatrixCSC
+# using Logging: @warn
+
+
+
+
 # statevector
 export StateVector, distance, distance2, onehot_encoding, qubit_encoding, reset!, amplitude, amplitudes, dot, norm, normalize!, normalize
 export reset_qubit!, reset_onehot!, rand_state, storage
@@ -18,16 +32,7 @@ export expectation
 export post_select, post_select!
 
 
-using Zygote
-using Zygote: @adjoint
 
-
-using LinearAlgebra, StaticArrays, QuantumCircuits, QuantumCircuits.Gates
-import LinearAlgebra, QuantumCircuits
-
-using KrylovKit: exponentiate
-# using SparseArrays: spzeros, sparse, SparseMatrixCSC
-# using Logging: @warn
 
 
 # auxiliary
