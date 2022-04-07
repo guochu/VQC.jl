@@ -34,9 +34,13 @@ Base.copy(x::StateVector) = StateVector(copy(storage(x)), nqubits(x))
 
 Base.cat(v::StateVector) = v
 function Base.cat(v::StateVector...)
-    a, b = _qcat_util(v...)
+    a, b = _qcat_util(storage.(v)...)
     return StateVector(kron(a, b))
 end
+
+Base.isapprox(x::StateVector, y::StateVector; kwargs...) = isapprox(storage(x), storage(y); kwargs...)
+Base.:(==)(x::StateVector, y::StateVector) = storage(x) == storage(y)
+
 
 Base.:+(x::StateVector, y::StateVector) = StateVector(storage(x) + storage(y), nqubits(x))
 Base.:-(x::StateVector, y::StateVector) = StateVector(storage(x) - storage(y), nqubits(x))
@@ -45,8 +49,6 @@ Base.:*(x::Number, y::StateVector) = y * x
 Base.:/(x::StateVector, y::Number) = StateVector(storage(x) / y, nqubits(x))
 Base.:*(m::AbstractMatrix, x::StateVector) = StateVector( m * storage(x), nqubits(x) )
 
-Base.isapprox(x::StateVector, y::StateVector; kwargs...) = isapprox(storage(x), storage(y); kwargs...)
-Base.:(==)(x::StateVector, y::StateVector) = storage(x) == storage(y)
 
 LinearAlgebra.norm(x::StateVector) = norm(storage(x))
 LinearAlgebra.dot(x::StateVector, y::StateVector) = dot(storage(x), storage(y))
@@ -151,7 +153,7 @@ function _sub2ind(v::AbstractVector{Int})
     return r
 end
 
-function _qcat_util(vr::AbstractVector...)
+function _qcat_util(vr::Union{AbstractVector, AbstractMatrix}...)
     v = reverse(vr)
     L = length(v)
     # println("$(typeof(v)), $L")

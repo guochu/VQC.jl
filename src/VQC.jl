@@ -41,8 +41,11 @@ include("auxiliary/parallel_for.jl")
 include("auxiliary/sampling.jl")
 include("auxiliary/tensorops.jl")
 
-# definitions of quantum gate
+# definitions of pure quantum gate
 include("statevector.jl")
+
+# density matrix representation 
+include("densitymatrix.jl")
 
 # quantum gate operations
 include("applygates/applygates.jl")
