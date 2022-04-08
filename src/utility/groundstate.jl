@@ -21,5 +21,5 @@ function time_evolution(h::QubitsOperator, t::Number, v::StateVector; kwargs...)
 	v = convert(StateVector{T}, v)
 	tmp, info = exponentiate(x -> storage(h(StateVector(x, n))), t, storage(v); ishermitian=true, kwargs...)
 	(info.converged>=1) || error("eigsolve fails to converge.")
-	return tmp
+	return StateVector(tmp, n)
 end
