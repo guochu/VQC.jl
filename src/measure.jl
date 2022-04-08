@@ -1,7 +1,7 @@
 """
-	apply!(x::QMeasure, qstate::StateVector)
+	apply!(x::QMeasure, qstate)
 """
-function apply!(x::QMeasure, qstate::StateVector)
+function apply!(x::QMeasure, qstate::Union{StateVector, DensityMatrix})
 	x.keep || error("only keep mode is implemented.")
 	probability, istate = _local_measure(storage(qstate), x.position)
 	op = I₂
@@ -22,7 +22,7 @@ Measure the i-th qubit of the quantum state, and return a 2-tuple including the 
 and the probability with which we get the outcome. The quantum state is updated inplace. \n 
 If auto_reset=true,the measured qubit is reset to 0, otherwise it will be the same as the measurement outcome.
 """
-measure!(qstate::StateVector, pos::Int; auto_reset::Bool=true) = apply!(QMeasure(pos, auto_reset=auto_reset), qstate)
+measure!(qstate::Union{StateVector, DensityMatrix}, pos::Int; auto_reset::Bool=true) = apply!(QMeasure(pos, auto_reset=auto_reset), qstate)
 
 
 function apply(s::QMeasure, qstater::StateVector)
@@ -59,6 +59,29 @@ end
 
 
 function _local_measure(v::AbstractVector, key::Int)
+	p0 = compute_probability_zero(v, key)
+	l = [p0, 1-p0]
+	i = discrete_sample(l)
+	return l[i], i
+end
+
+# for density matrix
+function compute_probability_zero(v::AbstractMatrix, key::Int)
+	L = size(v, 1)
+	pos = 2^(key-1)
+	stri = pos * 2
+	r = 0.
+	for i in 0:stri:(L-1)
+		@inbounds for j in 0:(pos-1)
+			l = i + j + 1
+			r += real(v[l, l])
+		end
+	end
+	return r
+end
+
+
+function _local_measure(v::AbstractMatrix, key::Int)
 	p0 = compute_probability_zero(v, key)
 	l = [p0, 1-p0]
 	i = discrete_sample(l)

@@ -55,6 +55,12 @@ LinearAlgebra.dot(x::StateVector, y::StateVector) = dot(storage(x), storage(y))
 LinearAlgebra.normalize!(x::StateVector) = (normalize!(storage(x)); x)
 LinearAlgebra.normalize(x::StateVector) = StateVector(normalize(storage(x)), nqubits(x))
 
+"""
+    fidelity(x, y) 
+    tr(√x * √y) if x and y are density matrices
+    ⟨x|y⟩^2 if x and y are pure states
+"""
+fidelity(x::StateVector, y::StateVector) = abs2(dot(x, y))
 distance2(x::StateVector, y::StateVector) = _distance2(x, y)
 distance(x::StateVector, y::StateVector) = _distance(x, y)
 

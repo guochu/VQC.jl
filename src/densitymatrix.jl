@@ -54,10 +54,21 @@ LinearAlgebra.dot(x::DensityMatrix, y::DensityMatrix) = dot(storage(x), storage(
 LinearAlgebra.normalize!(x::DensityMatrix) = (x.data ./= tr(x); x)
 LinearAlgebra.normalize(x::DensityMatrix) = normalize!(copy(x))
 
+fidelity(x::DensityMatrix, y::DensityMatrix) = real(tr(sqrt(storage(x)) * sqrt(storage(y))))
+fidelity(x::DensityMatrix, y::StateVector) = real(dot(storage(y), storage(x), storage(y)))
+fidelity(x::StateVector, y::DensityMatrix) = fidelity(y, x)
 distance2(x::DensityMatrix, y::DensityMatrix) = _distance2(x, y)
 distance(x::DensityMatrix, y::DensityMatrix) = _distance(x, y)
 
 
+function rand_densitymatrix(::Type{T}, n::Int) where {T <: Number}
+    (n >= 1) || error("number of qubits must be positive.")
+    L = 2^n
+    v = randn(T, L, L)
+    v = v' * v
+    return normalize!(DensityMatrix(v' * v, n))
+end
+rand_densitymatrix(n::Int) = rand_densitymatrix(ComplexF64, n)
 
 
 
