@@ -26,3 +26,18 @@ function _scalar_type(x::QuantumCircuits.QOP_DATA_VALUE_TYPE)
 	return T
 end
 
+
+function LinearAlgebra.ishermitian(x::QubitsTerm)
+	(imag(coeff(x)) ≈ 0.) || return false
+	for item in oplist(x)
+		ishermitian(item) || return false
+	end
+	return true
+end
+function LinearAlgebra.ishermitian(x::QubitsOperator)
+	for (k, v) in x.data
+		m = _get_mat(length(k), v)
+		ishermitian(m) || return false
+	end
+	return true
+end
