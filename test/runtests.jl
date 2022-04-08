@@ -1,5 +1,3 @@
-
-push!(LOAD_PATH, "/Users/guochu/Documents/QuantumSimulator/QuantumCircuits/src")
 push!(LOAD_PATH, "../src")
 
 include("util.jl")
@@ -59,7 +57,6 @@ end
 
 @testset "test quantum circuit gradient" begin
     include("circuitgrad.jl")
-    include("circuit2dgrad.jl")
     include("crxgategrad.jl")
 end
 
