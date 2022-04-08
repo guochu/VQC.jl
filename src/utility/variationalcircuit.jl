@@ -1,16 +1,3 @@
-export variational_circuit, variational_circuit_1d, variational_circuit_2d
-
-# function linear_index(shape::Tuple{Int, Int}, positions::Tuple{Int, Int}, rowmajor::Bool=true)
-# 	i, j = positions
-# 	(i<=shape[1] && j<=shape[2]) || error("index out of range.")
-# 	if rowmajor 
-# 		return (i-1)*shape[2] + j
-# 	else
-# 		return (j-1)*shape[1] + i
-# 	end	
-# end
-
-variational_circuit_nparameters(L::Int, depth::Int) = (depth+1) * L * 3
 
 """
 	variational_circuit_1d(L::Int, depth::Int, paras::Vector{<:Real})
@@ -84,3 +71,6 @@ function variational_circuit_2d(m::Int, n::Int, depth::Int, paras::Vector{<:Real
 	@assert ncount == length(paras)+1
 	return circuit
 end
+
+variational_circuit_nparameters(L::Int, depth::Int) = (depth+1) * L * 3
+

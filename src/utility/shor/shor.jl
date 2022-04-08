@@ -1,4 +1,3 @@
-export order_finding
 
 include("util.jl")
 include("Beauregard.jl")

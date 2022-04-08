@@ -34,9 +34,11 @@ export expectation
 # AD for post selection may be removed in the future
 export post_select, post_select!
 
+# partial trace
+export partial_tr
 
 # utility functions
-export partial_tr, QFT
+
 
 
 # auxiliary
@@ -70,6 +72,8 @@ include("hamiltonian/expecs/expecs.jl")
 include("circuitdiff.jl")
 include("additional_adjoints.jl")
 
+# partial trace
+include("ptrace.jl")
 
 # utility functions
 include("utility/utility.jl")
