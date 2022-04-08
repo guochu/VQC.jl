@@ -1,0 +1,10 @@
+name = "VQC"
+uuid = "b597f56f-6168-435b-8703-992ba2924e08"
+authors = ["Guo Chu <guochu604b@gmail.com>"]
+version = "0.0.1"
+
+[deps]
+KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+QuantumCircuits = "aefa5731-75ce-4e77-8b64-9dbb49b79a07"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
