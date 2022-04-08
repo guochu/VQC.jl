@@ -6,6 +6,7 @@ using Zygote: @adjoint
 
 
 using LinearAlgebra, StaticArrays, QuantumCircuits, QuantumCircuits.Gates
+using QuantumCircuits: permute
 import LinearAlgebra, QuantumCircuits
 
 # using KrylovKit: exponentiate
@@ -34,7 +35,8 @@ export expectation
 export post_select, post_select!
 
 
-
+# utility functions
+export partial_tr, QFT
 
 
 # auxiliary
@@ -42,6 +44,7 @@ include("auxiliary/distance.jl")
 include("auxiliary/parallel_for.jl")
 include("auxiliary/sampling.jl")
 include("auxiliary/tensorops.jl")
+include("auxiliary/indexop.jl")
 
 # definitions of pure quantum gate
 include("statevector.jl")

@@ -27,41 +27,46 @@ function random_unitary(n::Int)
 end
 
 
-@testset "test quantum gate operations" begin
-    include("check_gateop.jl")
-    include("check_high_qubit_gate.jl")
+# @testset "test quantum gate operations" begin
+#     include("check_gateop.jl")
+#     include("check_high_qubit_gate.jl")
+# end
+
+# @testset "test quantum state initialization" begin
+#     include("check_state_init.jl")
+# end
+
+
+# @testset "test qubit hamiltonian operations" begin
+#     include("check_qubits_ham.jl")
+# end
+
+# @testset "test circuit parameters" begin
+#     include("parameter.jl")
+# end
+
+# @testset "test measure and select" begin
+#     include("check_measure.jl")
+# end
+
+
+# @testset "test quantum algorithm" begin
+#     include("algs.jl")
+# end
+
+@testset "test utility" begin
+    include("check_utility.jl")
 end
 
-@testset "test quantum state initialization" begin
-    include("check_state_init.jl")
-end
 
+# @testset "test quantum circuit gradient" begin
+#     include("circuitgrad.jl")
+#     include("crxgategrad.jl")
+# end
 
-@testset "test qubit hamiltonian operations" begin
-    include("check_qubits_ham.jl")
-end
+# @testset "test quantum state gradient (may not variable via a quantum computer)" begin
+#     include("stategrad.jl")
+# end
 
-@testset "test circuit parameters" begin
-    include("parameter.jl")
-end
-
-@testset "test measure and select" begin
-    include("check_measure.jl")
-end
-
-
-@testset "test quantum algorithm" begin
-    include("algs.jl")
-end
-
-
-@testset "test quantum circuit gradient" begin
-    include("circuitgrad.jl")
-    include("crxgategrad.jl")
-end
-
-@testset "test quantum state gradient (may not variable via a quantum computer)" begin
-    include("stategrad.jl")
-end
 
 
