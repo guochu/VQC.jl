@@ -11,4 +11,11 @@
   * **Zygote as backend for auto differentiation**. VQC use Zygote as backend for auto differentiation.
 
 
-In developing stage...
+## Todo list;
+* Change the documentations
+* Compute expectation value on density matrix
+* AD for density matrix related operations
+* Support for general quantum channel operation on density matrix
+
+
+
