@@ -64,6 +64,11 @@ end
     include("crxgategrad.jl")
 end
 
+
+@testset "test expectation value gradient" begin
+    include("check_ham_expec_diff.jl")
+end
+
 @testset "test quantum state gradient (may not variable via a quantum computer)" begin
     include("stategrad.jl")
 end

@@ -70,6 +70,7 @@ include("hamiltonian/expecs/expecs.jl")
 
 # differentiation
 include("circuitdiff.jl")
+include("expecdiff.jl")
 include("additional_adjoints.jl")
 
 # partial trace
