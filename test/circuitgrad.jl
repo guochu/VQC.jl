@@ -10,7 +10,7 @@ function circuit_grad_dot_real(L::Int, depth::Int)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = real(dot(target_state, x * initial_state))
-	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs=θs))
 
 	grad1 = gradient(loss, circuit)[1]
 	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
@@ -27,7 +27,7 @@ function circuit_grad_dot_imag(L::Int, depth::Int)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = imag(dot(target_state, x * initial_state))
-	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs=θs))
 
 	grad1 = gradient(loss, circuit)[1]
 	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
@@ -43,7 +43,7 @@ function circuit_grad_dot_abs(L::Int, depth::Int)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = abs(dot(target_state, x * initial_state))
-	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs=θs))
 
 	grad1 = gradient(loss, circuit)[1]
 	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
@@ -59,7 +59,7 @@ function circuit_grad_dot_abs2(L::Int, depth::Int)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = abs2(dot(target_state, x * initial_state))
-	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs=θs))
 
 	grad1 = gradient(loss, circuit)[1]
 	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
@@ -76,7 +76,7 @@ function circuit_grad_distance(L::Int, depth::Int)
 	circuit =  variational_circuit_1d(L, depth)
 
 	loss(x) = distance(target_state, x * initial_state)
-	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs))
+	loss_fd(θs) = loss(variational_circuit_1d(L, depth, θs=θs))
 
 	grad1 = gradient(loss, circuit)[1]
 	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))
@@ -137,7 +137,7 @@ function circuit2d_grad_dot_real(m::Int, n::Int, depth::Int)
 	circuit =  variational_circuit_2d(m, n, depth)
 
 	loss(x) = real(dot(target_state, x * initial_state))
-	loss_fd(θs) = loss(variational_circuit_2d(m, n, depth, θs))
+	loss_fd(θs) = loss(variational_circuit_2d(m, n, depth, θs = θs))
 
 	grad1 = gradient(loss, circuit)[1]
 	grad2 = fdm_gradient(loss_fd, active_parameters(circuit))

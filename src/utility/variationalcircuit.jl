@@ -1,9 +1,10 @@
 """
-	variational_circuit_1d(L::Int, depth::Int, paras::Vector{<:Real}; rotate_first::Bool)
+	variational_circuit_1d(L::Int, depth::Int; rotate_first::Bool, θs::Vector{<:Real})
 Return a variational quantum circuit given L qubis and d depth
 """
-function variational_circuit_1d(L::Int, depth::Int, paras::Vector{<:Real}=rand(variational_circuit_nparameters(ComplexF64, L, depth)) .* 2π; rotate_first::Bool=true)
-	(length(paras) == variational_circuit_nparameters(ComplexF64, L, depth, rotate_first)) || throw("wrong number of parameters.")
+function variational_circuit_1d(L::Int, depth::Int; rotate_first::Bool=true, θs::Vector{<:Real}=rand(_nparas(ComplexF64, L, depth, rotate_first)) .* 2π)
+	paras = θs
+	(length(paras) == _nparas(ComplexF64, L, depth, rotate_first)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
 	ncount = 1
 	if rotate_first
@@ -32,10 +33,10 @@ function variational_circuit_1d(L::Int, depth::Int, paras::Vector{<:Real}=rand(v
 	@assert ncount == length(paras)+1
 	return circuit	
 end
-variational_circuit(args...; kwargs...) = variational_circuit_1d(args...; kwargs...)
 
-function real_variational_circuit_1d(L::Int, depth::Int, paras::Vector{<:Real}=rand(variational_circuit_nparameters(Float64, L, depth)) .* 2π; rotate_first::Bool=true)
-	(length(paras) == variational_circuit_nparameters(Float64, L, depth, rotate_first)) || throw("wrong number of parameters.")
+function real_variational_circuit_1d(L::Int, depth::Int; rotate_first::Bool=true, θs::Vector{<:Real}=rand(_nparas(Float64, L, depth, rotate_first)) .* 2π)
+	paras = θs
+	(length(paras) == _nparas(Float64, L, depth, rotate_first)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
 	ncount = 1
 	if rotate_first
@@ -58,9 +59,10 @@ function real_variational_circuit_1d(L::Int, depth::Int, paras::Vector{<:Real}=r
 end
 
 
-function variational_circuit_2d(m::Int, n::Int, depth::Int, paras::Vector{<:Real}=rand(variational_circuit_nparameters(ComplexF64, m*n, depth)) .* 2π; rotate_first::Bool=true)
+function variational_circuit_2d(m::Int, n::Int, depth::Int; rotate_first::Bool=true, θs::Vector{<:Real}=rand(_nparas(ComplexF64, m*n, depth, rotate_first)) .* 2π)
+	paras = θs
 	L = m*n
-	(length(paras) == variational_circuit_nparameters(ComplexF64, L, depth, rotate_first)) || throw("wrong number of parameters.")
+	(length(paras) == _nparas(ComplexF64, L, depth, rotate_first)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
 	ncount = 1
 	if rotate_first
@@ -100,9 +102,10 @@ function variational_circuit_2d(m::Int, n::Int, depth::Int, paras::Vector{<:Real
 end
 variational_circuit_2d(shapes::Tuple{Int, Int}, args...; kwargs...) = variational_circuit_2d(shapes[1], shapes[2], args...; kwargs...)
 
-function real_variational_circuit_2d(m::Int, n::Int, depth::Int, paras::Vector{<:Real}=rand(variational_circuit_nparameters(Float64, m*n, depth)) .* 2π; rotate_first::Bool=true)
+function real_variational_circuit_2d(m::Int, n::Int, depth::Int; rotate_first::Bool=true, θs::Vector{<:Real}=rand(_nparas(Float64, m*n, depth, rotate_first)) .* 2π)
+	paras = θs
 	L = m*n
-	(length(paras) == variational_circuit_nparameters(Float64, L, depth, rotate_first)) || throw("wrong number of parameters.")
+	(length(paras) == _nparas(Float64, L, depth, rotate_first)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
 	ncount = 1
 	if rotate_first
@@ -134,7 +137,7 @@ function real_variational_circuit_2d(m::Int, n::Int, depth::Int, paras::Vector{<
 end
 real_variational_circuit_2d(shapes::Tuple{Int, Int}, args...; kwargs...) = real_variational_circuit_2d(shapes[1], shapes[2], args...; kwargs...)
 
-function variational_circuit_nparameters(::Type{T}, L::Int, depth::Int, rotate_first::Bool=true) where {T <: Number}
+function _nparas(::Type{T}, L::Int, depth::Int, rotate_first::Bool) where {T <: Number}
 	n = rotate_first ? depth+1 : depth
 	return (T <: Real) ? n * L : n * L * 3
 end 
