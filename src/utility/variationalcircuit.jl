@@ -1,22 +1,20 @@
 """
-	variational_circuit_1d(L::Int, depth::Int; rotate_first::Bool, θs::Vector{<:Real})
+	variational_circuit_1d(L::Int, depth::Int; θs::Vector{<:Real})
 Return a variational quantum circuit given L qubis and d depth
 """
-function variational_circuit_1d(L::Int, depth::Int; rotate_first::Bool=true, θs::Vector{<:Real}=rand(_nparas(ComplexF64, L, depth, rotate_first)) .* 2π)
+function variational_circuit_1d(L::Int, depth::Int; θs::Vector{<:Real}=rand(_nparas(ComplexF64, L, depth)) .* 2π)
 	paras = θs
-	(length(paras) == _nparas(ComplexF64, L, depth, rotate_first)) || throw("wrong number of parameters.")
+	(length(paras) == _nparas(ComplexF64, L, depth)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
 	ncount = 1
-	if rotate_first
-		for i in 1:L
-			push!(circuit, RzGate(i, paras[ncount], isparas=true))
-			ncount += 1
-			push!(circuit, RyGate(i, paras[ncount], isparas=true))
-			ncount += 1
-			push!(circuit, RzGate(i, paras[ncount], isparas=true))
-			ncount += 1
-		end		
-	end
+	for i in 1:L
+		push!(circuit, RzGate(i, paras[ncount], isparas=true))
+		ncount += 1
+		push!(circuit, RyGate(i, paras[ncount], isparas=true))
+		ncount += 1
+		push!(circuit, RzGate(i, paras[ncount], isparas=true))
+		ncount += 1
+	end		
 	for i in 1:depth
 		for j in 1:(L-1)
 		    push!(circuit, CNOTGate(j, j+1))
@@ -34,17 +32,15 @@ function variational_circuit_1d(L::Int, depth::Int; rotate_first::Bool=true, θs
 	return circuit	
 end
 
-function real_variational_circuit_1d(L::Int, depth::Int; rotate_first::Bool=true, θs::Vector{<:Real}=rand(_nparas(Float64, L, depth, rotate_first)) .* 2π)
+function real_variational_circuit_1d(L::Int, depth::Int; θs::Vector{<:Real}=rand(_nparas(Float64, L, depth)) .* 2π)
 	paras = θs
-	(length(paras) == _nparas(Float64, L, depth, rotate_first)) || throw("wrong number of parameters.")
+	(length(paras) == _nparas(Float64, L, depth)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
 	ncount = 1
-	if rotate_first
-		for i in 1:L
-			push!(circuit, RyGate(i, paras[ncount], isparas=true))
-			ncount += 1
-		end		
-	end
+	for i in 1:L
+		push!(circuit, RyGate(i, paras[ncount], isparas=true))
+		ncount += 1
+	end		
 	for i in 1:depth
 		for j in 1:(L-1)
 		    push!(circuit, CNOTGate(j, j+1))
@@ -59,22 +55,20 @@ function real_variational_circuit_1d(L::Int, depth::Int; rotate_first::Bool=true
 end
 
 
-function variational_circuit_2d(m::Int, n::Int, depth::Int; rotate_first::Bool=true, θs::Vector{<:Real}=rand(_nparas(ComplexF64, m*n, depth, rotate_first)) .* 2π)
+function variational_circuit_2d(m::Int, n::Int, depth::Int; θs::Vector{<:Real}=rand(_nparas(ComplexF64, m*n, depth)) .* 2π)
 	paras = θs
 	L = m*n
-	(length(paras) == _nparas(ComplexF64, L, depth, rotate_first)) || throw("wrong number of parameters.")
+	(length(paras) == _nparas(ComplexF64, L, depth)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
 	ncount = 1
-	if rotate_first
-		for i in 1:L
-			push!(circuit, RzGate(i, paras[ncount], isparas=true))
-			ncount += 1
-			push!(circuit, RyGate(i, paras[ncount], isparas=true))
-			ncount += 1
-			push!(circuit, RzGate(i, paras[ncount], isparas=true))
-			ncount += 1
-		end	
-	end
+	for i in 1:L
+		push!(circuit, RzGate(i, paras[ncount], isparas=true))
+		ncount += 1
+		push!(circuit, RyGate(i, paras[ncount], isparas=true))
+		ncount += 1
+		push!(circuit, RzGate(i, paras[ncount], isparas=true))
+		ncount += 1
+	end	
 
 	index = LinearIndices((m, n))
 	for l in 1:depth
@@ -102,18 +96,16 @@ function variational_circuit_2d(m::Int, n::Int, depth::Int; rotate_first::Bool=t
 end
 variational_circuit_2d(shapes::Tuple{Int, Int}, args...; kwargs...) = variational_circuit_2d(shapes[1], shapes[2], args...; kwargs...)
 
-function real_variational_circuit_2d(m::Int, n::Int, depth::Int; rotate_first::Bool=true, θs::Vector{<:Real}=rand(_nparas(Float64, m*n, depth, rotate_first)) .* 2π)
+function real_variational_circuit_2d(m::Int, n::Int, depth::Int; θs::Vector{<:Real}=rand(_nparas(Float64, m*n, depth)) .* 2π)
 	paras = θs
 	L = m*n
-	(length(paras) == _nparas(Float64, L, depth, rotate_first)) || throw("wrong number of parameters.")
+	(length(paras) == _nparas(Float64, L, depth)) || throw("wrong number of parameters.")
 	circuit = QCircuit()
 	ncount = 1
-	if rotate_first
-		for i in 1:L
-			push!(circuit, RyGate(i, paras[ncount], isparas=true))
-			ncount += 1
-		end			
-	end
+	for i in 1:L
+		push!(circuit, RyGate(i, paras[ncount], isparas=true))
+		ncount += 1
+	end			
 
 	index = LinearIndices((m, n))
 	for l in 1:depth
@@ -137,8 +129,8 @@ function real_variational_circuit_2d(m::Int, n::Int, depth::Int; rotate_first::B
 end
 real_variational_circuit_2d(shapes::Tuple{Int, Int}, args...; kwargs...) = real_variational_circuit_2d(shapes[1], shapes[2], args...; kwargs...)
 
-function _nparas(::Type{T}, L::Int, depth::Int, rotate_first::Bool) where {T <: Number}
-	n = rotate_first ? depth+1 : depth
+function _nparas(::Type{T}, L::Int, depth::Int) where {T <: Number} 
+	n = depth+1
 	return (T <: Real) ? n * L : n * L * 3
 end 
 
