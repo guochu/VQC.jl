@@ -2,7 +2,7 @@ struct DensityMatrix{T <: Number}
 	data::Vector{T}
 	nqubits::Int
 
-function DensityMatrix{T}(data::Vector{<:Number}, nqubits::Int) where {T <: Number}
+function DensityMatrix{T}(data::AbstractVector{<:Number}, nqubits::Int) where {T <: Number}
 	(length(data) == 2^(2*nqubits)) || throw(DimensionMismatch())
 	new{T}(convert(Vector{T}, data), nqubits)
 end
@@ -70,6 +70,11 @@ function rand_densitymatrix(::Type{T}, n::Int) where {T <: Number}
 end
 rand_densitymatrix(n::Int) = rand_densitymatrix(ComplexF64, n)
 
+function QuantumCircuits.permute(x::DensityMatrix, newindex::Vector{Int})
+	n = nqubits(x)
+	L = length(x.data)
+	return DensityMatrix(reshape(permute(reshape(x.data, ntuple(i->2, 2*n)), vcat(newindex, newindex .+ n)), L), n)
+end 
 
 
 

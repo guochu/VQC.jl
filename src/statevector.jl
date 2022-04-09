@@ -112,7 +112,7 @@ function reset_onehot!(x::StateVector, i::AbstractVector{Int})
     x[pos] = one(eltype(x))
     return x
 end
-# reset!(x::StateVector, i::AbstractVector{Int}) = reset_onehot!(x, i)
+
 function reset_qubit!(x::StateVector, i::AbstractVector{<:Real})
     @assert nqubits(x) == length(i)
     if length(i) == 1
@@ -146,6 +146,12 @@ function rand_state(::Type{T}, n::Int) where {T <: Number}
     return StateVector(v, n)
 end
 rand_state(n::Int) = rand_state(ComplexF64, n)
+
+function QuantumCircuits.permute(x::StateVector, newindex::Vector{Int})
+    n = nqubits(x)
+    L = length(storage(x))
+    return StateVector(reshape(permute(reshape(storage(x), ntuple(i->2,n)), newindex), L), n)
+end
 
 
 function _sub2ind(v::AbstractVector{Int})
