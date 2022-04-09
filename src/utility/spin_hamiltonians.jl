@@ -18,7 +18,7 @@ function heisenberg_chain(L::Int; J::Real=1., Jzz::Real=J, hz::Real=0.)
         push!(terms, t')
         push!(terms, QubitsTerm(i=>z, i+1=>z, coeff=Jzz))
     end
-    return QubitsOperator(terms...)
+    return simplify(QubitsOperator(terms...))
 end
 heisenberg_1d(L::Int; kwargs...) = heisenberg_chain(L; kwargs...)
 
@@ -45,8 +45,9 @@ function heisenberg_2d(m::Int, n::Int=m; J::Real=1., Jzz::Real=J, hz::Real=0.)
             push!(terms, QubitsTerm(index[i, j]=>z, index[i+1, j]=>z, coeff=Jzz) )
         end
     end
-    return QubitsOperator(terms...) 
+    return simplify(QubitsOperator(terms...))
 end
+heisenberg_2d(shapes::Tuple{Int, Int}; kwargs...) = heisenberg_2d(shapes[1], shapes[2]; kwargs...)
 
 
 function ising_chain(L::Int; J::Real=1., hz::Real=1.)
@@ -58,7 +59,7 @@ function ising_chain(L::Int; J::Real=1., hz::Real=1.)
     for i in 1:L-1
     	push!(terms, QubitsTerm(i=>x, i+1=>x, coeff=J))
     end
-    return QubitsOperator(terms...)
+    return simplify(QubitsOperator(terms...))
 end
 ising_1d(L::Int; kwargs...) = ising_chain(L; kwargs...)
 
@@ -79,6 +80,6 @@ function ising_2d(m::Int, n::Int=m; J::Real=1., hz::Real=1.)
             push!(terms, QubitsTerm(index[i, j]=>x, index[i+1, j]=>x, coeff=J) )
         end
     end
-    return QubitsOperator(terms...) 
+    return simplify(QubitsOperator(terms...))
 end
-
+ising_2d(shapes::Tuple{Int, Int}; kwargs...) = ising_2d(shapes[1], shapes[2]; kwargs...)
