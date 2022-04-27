@@ -20,6 +20,7 @@ import LinearAlgebra, QuantumCircuits
 export StateVector, DensityMatrix, distance, distance2, onehot_encoding, qubit_encoding, reset!, amplitude, amplitudes
 export tr, dot, norm, normalize!, normalize, ishermitian
 export reset_qubit!, reset_onehot!, storage, fidelity, rand_state, rand_densitymatrix, permute
+export schmidt_numbers, renyi_entropy
 
 # gate operations
 export apply!

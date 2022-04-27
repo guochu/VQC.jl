@@ -61,7 +61,8 @@ fidelity(x::DensityMatrix, y::StateVector) = real(dot(storage(y), storage(x), st
 fidelity(x::StateVector, y::DensityMatrix) = fidelity(y, x)
 distance2(x::DensityMatrix, y::DensityMatrix) = _distance2(x, y)
 distance(x::DensityMatrix, y::DensityMatrix) = _distance(x, y)
-
+schmidt_numbers(x::DensityMatrix) = eigvals(Hermitian(storage(x)))
+renyi_entropy(x::DensityMatrix; kwargs...) = renyi_entropy(schmidt_numbers(x); kwargs...)
 
 function rand_densitymatrix(::Type{T}, n::Int) where {T <: Number}
     (n >= 1) || error("number of qubits must be positive.")
