@@ -53,6 +53,8 @@ LinearAlgebra.tr(x::DensityMatrix) = tr(storage(x))
 LinearAlgebra.dot(x::DensityMatrix, y::DensityMatrix) = dot(storage(x), storage(y))
 LinearAlgebra.normalize!(x::DensityMatrix) = (x.data ./= tr(x); x)
 LinearAlgebra.normalize(x::DensityMatrix) = normalize!(copy(x))
+LinearAlgebra.ishermitian(x::DensityMatrix) = ishermitian(storage(x))
+LinearAlgebra.isposdef(x::DensityMatrix) = isposdef(storage(x))
 
 fidelity(x::DensityMatrix, y::DensityMatrix) = real(tr(sqrt(storage(x)) * sqrt(storage(y))))
 fidelity(x::DensityMatrix, y::StateVector) = real(dot(storage(y), storage(x), storage(y)))

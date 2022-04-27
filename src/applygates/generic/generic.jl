@@ -32,7 +32,7 @@ end
 
 Base.:*(circuit::QCircuit, state::Union{StateVector, DensityMatrix}) = apply!(circuit, copy(state))
 
-function _check_pos_range(x::Gate, n::Int)
+function _check_pos_range(x, n::Int)
 	pos = ordered_positions(x)
 	(length(pos) > 5) && throw("only implement 5-qubit gates and less currently.")
 	return (pos[1] >= 1) && (pos[end] <= n)
