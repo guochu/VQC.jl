@@ -48,6 +48,12 @@ end
 Base.isapprox(x::DensityMatrix, y::DensityMatrix; kwargs...) = isapprox(x.data, y.data; kwargs...)
 Base.:(==)(x::DensityMatrix, y::DensityMatrix) = x.data == y.data
 
+Base.:+(x::DensityMatrix, y::DensityMatrix) = DensityMatrix(x.data + y.data, nqubits(x))
+Base.:-(x::DensityMatrix, y::DensityMatrix) = DensityMatrix(x.data - y.data, nqubits(x))
+Base.:*(x::DensityMatrix, y::Number) = DensityMatrix(x.data * y, nqubits(x))
+Base.:*(x::Number, y::DensityMatrix) = y * x
+Base.:/(x::DensityMatrix, y::Number) = DensityMatrix(x.data / y, nqubits(x))
+
 
 LinearAlgebra.tr(x::DensityMatrix) = tr(storage(x))
 LinearAlgebra.dot(x::DensityMatrix, y::DensityMatrix) = dot(storage(x), storage(y))
