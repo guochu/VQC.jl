@@ -2,7 +2,7 @@
 @adjoint *(circuit::QCircuit, x::StateVector) = begin
     y = circuit * x
     return y, Δ -> begin
-        Δ, grads, y = back_propagate(Δ, circuit, copy(y))
+        Δ, grads, y = back_propagate(copy(Δ), circuit, copy(y))
         return grads, Δ
     end
 end
