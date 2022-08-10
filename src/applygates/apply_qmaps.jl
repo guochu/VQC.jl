@@ -15,6 +15,8 @@ function apply!(x::QuantumMap, state::DensityMatrix)
 	return state
 end
 
+apply!(x::QuantumMap, state::StateVector) = apply!(x, DensityMatrix(state)) 
+
 
 # unitary gate operation on density matrix
 function _qmap_apply_threaded!(x::QuantumMap{N}, s::AbstractVector, n::Int) where N
