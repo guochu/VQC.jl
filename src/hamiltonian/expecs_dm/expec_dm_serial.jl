@@ -1,5 +1,5 @@
 
-@inline get_2_by_2(state::AbstractMatrix, posa::Int, posb::Int) = SMatrix{2,2}(state[posa, posa], state[pos_b, posa], state[posa, pos_b], state[pos_b, pos_b])
+@inline get_2_by_2(state::AbstractMatrix, posa::Int, posb::Int) = SMatrix{2,2}(state[posa, posa], state[posb, posa], state[posa, posb], state[posb, posb])
 
 @inline function get_4_by_4(state::AbstractMatrix, pos1::Int, pos2::Int, pos3::Int, pos4::Int)
 	return SMatrix{4,4}(state[pos1, pos1], state[pos2, pos1], state[pos3, pos1], state[pos4, pos1], 
@@ -26,9 +26,11 @@ function _expectation_value_util(pos::Int, m::AbstractMatrix, state::AbstractMat
 	sj = 2
 	s1 = 2^(pos-1)
 	s2 = s1 * sj
+	L = size(state, 1)
 	r = zero(eltype(state))
-	for i in 0:s2:(length(state)-1)
+	for i in 0:s2:(L-1)
 		for j in 0:(s1-1)
+			pos_start = i + j + 1
 		    v = get_2_by_2(state, pos_start, pos_start + s1)
 		    @fastmath r += tr(m * v)
 		end
@@ -36,29 +38,30 @@ function _expectation_value_util(pos::Int, m::AbstractMatrix, state::AbstractMat
 	return r
 end
 
-function _expectation_value_util(pos::Int, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix)
-	(size(m, 1) == size(m, 2)) || error("observable must be a square matrix.")
-	(size(m, 1) == 2) || error("input must be a 2 by 2 matrix.")
-	sj = 2
-	s1 = 2^(pos-1)
-	s2 = s1 * sj
-	r = zero(eltype(state))
-	for i in 0:s2:(length(state)-1)
-		for j in 0:(s1-1)
-		    pos_start = i + j + 1
-		    pos_b = pos_start + s1
-		    v = get_2_by_2(state, pos_start, pos_b)
-		    v_c = get_2_by_2(state_c, pos_start, pos_b)
-		    @fastmath r += dot(v_c, m, v)
-		end
-	end
-	return r
-end
+# function _expectation_value_util(pos::Int, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix)
+# 	(size(m, 1) == size(m, 2)) || error("observable must be a square matrix.")
+# 	(size(m, 1) == 2) || error("input must be a 2 by 2 matrix.")
+# 	sj = 2
+# 	s1 = 2^(pos-1)
+# 	s2 = s1 * sj
+# 	L = size(state, 1)
+# 	r = zero(eltype(state))
+# 	for i in 0:s2:(L-1)
+# 		for j in 0:(s1-1)
+# 		    pos_start = i + j + 1
+# 		    pos_b = pos_start + s1
+# 		    v = get_2_by_2(state, pos_start, pos_b)
+# 		    v_c = get_2_by_2(state_c, pos_start, pos_b)
+# 		    @fastmath r += dot(v_c, m, v)
+# 		end
+# 	end
+# 	return r
+# end
 
 function _expectation_value_util(key::Tuple{Int, Int}, m::AbstractMatrix, v::AbstractMatrix)
 	(size(m, 1) == size(m, 2)) || error("observable must be a square matrix.")
 	(size(m, 1) == 4) || error("input must be a 4 by 4 matrix.")
-    L = length(v)
+    L = size(v, 1)
     q1, q2 = key
     pos1, pos2 = 2^(q1-1), 2^(q2-1)
     stride1, stride2 = 2 * pos1, 2 * pos2
@@ -76,30 +79,29 @@ function _expectation_value_util(key::Tuple{Int, Int}, m::AbstractMatrix, v::Abs
 end
 
 
-function _expectation_value_util(key::Tuple{Int, Int}, m::AbstractMatrix, v::AbstractMatrix, v_c::AbstractMatrix)
-	(size(m, 1) == size(m, 2)) || error("observable must be a square matrix.")
-	(size(m, 1) == 4) || error("input must be a 4 by 4 matrix.")
-    L = length(v)
-    q1, q2 = key
-    pos1, pos2 = 2^(q1-1), 2^(q2-1)
-    stride1, stride2 = 2 * pos1, 2 * pos2
-    r = zero(eltype(v))
-    for i in 0:stride2:(L-1)
-        for j in 0:stride1:(pos2-1)
-            @inbounds for k in 0:(pos1-1)
-                l = i + j + k + 1
-                vi = get_4_by_4(v, l, l + pos1, l + pos2, l + pos1 + pos2)
-                vi_c = get_4_by_4(v_c, l, l + pos1, l + pos2, l + pos1 + pos2)
-                @fastmath r += dot(vi_c, m, vi)
-            end
-        end
-    end
-    return r
-end
+# function _expectation_value_util(key::Tuple{Int, Int}, m::AbstractMatrix, v::AbstractMatrix, v_c::AbstractMatrix)
+# 	(size(m, 1) == size(m, 2)) || error("observable must be a square matrix.")
+# 	(size(m, 1) == 4) || error("input must be a 4 by 4 matrix.")
+#     L = size(v, 1)
+#     q1, q2 = key
+#     pos1, pos2 = 2^(q1-1), 2^(q2-1)
+#     stride1, stride2 = 2 * pos1, 2 * pos2
+#     r = zero(eltype(v))
+#     for i in 0:stride2:(L-1)
+#         for j in 0:stride1:(pos2-1)
+#             @inbounds for k in 0:(pos1-1)
+#                 l = i + j + k + 1
+#                 vi = get_4_by_4(v, l, l + pos1, l + pos2, l + pos1 + pos2)
+#                 vi_c = get_4_by_4(v_c, l, l + pos1, l + pos2, l + pos1 + pos2)
+#                 @fastmath r += dot(vi_c, m, vi)
+#             end
+#         end
+#     end
+#     return r
+# end
 
-
-function _expectation_value_util(key::Tuple{Int, Int, Int}, m::AbstractMatrix, v::AbstractMatrix, v_c::AbstractMatrix)
-    L = length(v)
+function _expectation_value_util(key::Tuple{Int, Int, Int}, m::AbstractMatrix, v::AbstractMatrix)
+    L = size(v, 1)
     q1, q2, q3 = key
     pos1, pos2, pos3 = 2^(q1-1), 2^(q2-1), 2^(q3-1)
     stride1, stride2, stride3 = 2 * pos1, 2 * pos2, 2 * pos3
@@ -118,8 +120,7 @@ function _expectation_value_util(key::Tuple{Int, Int, Int}, m::AbstractMatrix, v
             		l011 = l001 + pos2
             		l111 = l011 + pos1
                 	vi = get_8_by_8(v, l000, l100, l010, l110, l001, l101, l011, l111)
-                	vi_c = get_8_by_8(v_c, l000, l100, l010, l110, l001, l101, l011, l111)
-                	@fastmath r += dot(vi_c, m, vi)
+                	@fastmath r += tr(m * vi)
             	end
         	end
     	end
@@ -127,24 +128,54 @@ function _expectation_value_util(key::Tuple{Int, Int, Int}, m::AbstractMatrix, v
     return r
 end
 
-expectation_value_serial(pos::Int, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix) = _expectation_value_util(
-	pos, SMatrix{2,2, eltype(state)}(m), state, state_c)
+
+# function _expectation_value_util(key::Tuple{Int, Int, Int}, m::AbstractMatrix, v::AbstractMatrix, v_c::AbstractMatrix)
+#     L = size(v, 1)
+#     q1, q2, q3 = key
+#     pos1, pos2, pos3 = 2^(q1-1), 2^(q2-1), 2^(q3-1)
+#     stride1, stride2, stride3 = 2 * pos1, 2 * pos2, 2 * pos3
+#     r = zero(eltype(v))
+#    	for h in 0:stride3:(L-1)
+#    		for i in 0:stride2:(pos3-1)
+#    			for j in 0:stride1:(pos2-1)
+#    				@inbounds for k in 0:(pos1-1)
+#    					l000 = h + i + j + k + 1
+#    					l100 = l000 + pos1
+#             		l010 = l000 + pos2
+#             		l110 = l010 + pos1
+
+#             		l001 = l000 + pos3
+#             		l101 = l001 + pos1
+#             		l011 = l001 + pos2
+#             		l111 = l011 + pos1
+#                 	vi = get_8_by_8(v, l000, l100, l010, l110, l001, l101, l011, l111)
+#                 	vi_c = get_8_by_8(v_c, l000, l100, l010, l110, l001, l101, l011, l111)
+#                 	@fastmath r += dot(vi_c, m, vi)
+#             	end
+#         	end
+#     	end
+#     end
+#     return r
+# end
+
+# expectation_value_serial(pos::Int, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix) = _expectation_value_util(
+# 	pos, SMatrix{2,2, eltype(state)}(m), state, state_c)
 expectation_value_serial(pos::Int, m::AbstractMatrix, state::AbstractMatrix) = _expectation_value_util(
 	pos, SMatrix{2,2, eltype(state)}(m), state)
 
 
-expectation_value_serial(pos::Tuple{Int}, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix) = expectation_value_serial(
-	pos[1], m, state, state_c)
+# expectation_value_serial(pos::Tuple{Int}, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix) = expectation_value_serial(
+# 	pos[1], m, state, state_c)
 expectation_value_serial(pos::Tuple{Int}, m::AbstractMatrix, state::AbstractMatrix) = expectation_value_serial(
 	pos[1], m, state)
 
-expectation_value_serial(pos::Tuple{Int, Int}, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix) = _expectation_value_util(
-	pos, SMatrix{4,4, eltype(state)}(m), state, state_c)
+# expectation_value_serial(pos::Tuple{Int, Int}, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix) = _expectation_value_util(
+# 	pos, SMatrix{4,4, eltype(state)}(m), state, state_c)
 expectation_value_serial(pos::Tuple{Int, Int}, m::AbstractMatrix, state::AbstractMatrix) = _expectation_value_util(
 	pos, SMatrix{4,4, eltype(state)}(m), state)
 
-expectation_value_serial(pos::Tuple{Int, Int, Int}, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix) = _expectation_value_util(
-	pos, m, state, state_c) 
-expectation_value_serial(pos::Tuple{Int, Int, Int}, m::AbstractMatrix, state::AbstractMatrix) = expectation_value_serial(
-	pos, m, state, state)
+# expectation_value_serial(pos::Tuple{Int, Int, Int}, m::AbstractMatrix, state::AbstractMatrix, state_c::AbstractMatrix) = _expectation_value_util(
+# 	pos, m, state, state_c) 
+expectation_value_serial(pos::Tuple{Int, Int, Int}, m::AbstractMatrix, state::AbstractMatrix) = _expectation_value_util(
+	pos, SMatrix{8,8, eltype(state)}(m), state)
 

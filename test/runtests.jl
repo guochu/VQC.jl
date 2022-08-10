@@ -74,4 +74,8 @@ end
 end
 
 
+@testset "test density matrix operations" begin
+    include("stategrad.jl")
+end
+
 

@@ -27,16 +27,17 @@ function expectation(m::QubitsOperator, state::StateVector)
 		end 
 		return r   
 	else
-		state = storage(state)
-		workspace = similar(state)
-		state_2 = zeros(eltype(state), length(state))
-		for (k, v) in m.data
-		    for item in v
-		    	_apply_qterm_util!(QubitsTerm(k, item[1], item[2]), state, workspace)
-		    	state_2 .+= workspace
-		    end
-		end
-		return dot(state, state_2)
+		# state = storage(state)
+		# workspace = similar(state)
+		# state_2 = zeros(eltype(state), length(state))
+		# for (k, v) in m.data
+		#     for item in v
+		#     	_apply_qterm_util!(QubitsTerm(k, item[1], item[2]), state, workspace)
+		#     	state_2 .+= workspace
+		#     end
+		# end
+		# return dot(state, state_2)
+		return dot(state, m * state)
 	end
 end
 
@@ -58,16 +59,17 @@ function expectation(state_c::StateVector, m::QubitsOperator, state::StateVector
 		end
 		return r
 	else
-		state = storage(state)
-		workspace = similar(state)
-		state_2 = zeros(eltype(state), length(state))
-		for (k, v) in m.data
-		    for item in v
-		    	_apply_qterm_util!(QubitsTerm(k, item[1], item[2]), state, workspace)
-		    	state_2 .+= workspace
-		    end
-		end
-		return dot(state_c, state_2)
+		# state = storage(state)
+		# workspace = similar(state)
+		# state_2 = zeros(eltype(state), length(state))
+		# for (k, v) in m.data
+		#     for item in v
+		#     	_apply_qterm_util!(QubitsTerm(k, item[1], item[2]), state, workspace)
+		#     	state_2 .+= workspace
+		#     end
+		# end
+		# return dot(state_c, state_2)
+		return dot(state_c, m * state)
 	end
 end
 

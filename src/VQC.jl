@@ -67,6 +67,7 @@ include("postselect.jl")
 include("hamiltonian/util.jl")
 include("hamiltonian/apply_qterms/apply_qterms.jl")
 include("hamiltonian/expecs/expecs.jl")
+include("hamiltonian/expecs_dm/expecs_dm.jl")
 
 
 # differentiation

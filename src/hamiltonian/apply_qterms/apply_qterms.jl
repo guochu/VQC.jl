@@ -17,9 +17,9 @@ function (m::QubitsOperator)(vr::StateVector)
 		_apply_util!(m, v, vout)
 	else
 		workspace = similar(v)
-		for (k, v) in m
-			for item in v
-			   _apply_qterm_util!(QubitsTerm(k, item), v, workspace) 
+		for (k, dd) in m.data
+			for item in dd
+			   _apply_qterm_util!(QubitsTerm(k, item[1], item[2]), v, workspace) 
 			   vout .+= workspace
 			end
 		end
