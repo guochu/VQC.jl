@@ -99,6 +99,16 @@ function qubit_encoding(::Type{T}, i::AbstractVector{<:Real}) where {T <: Number
 end  
 qubit_encoding(mpsstr::AbstractVector{<:Real}) = qubit_encoding(ComplexF64, mpsstr)
 
+function amplitude_encoding(::Type{T}, v::AbstractVector{<:Number}; nqubits::Int=ceil(Int, log2(length(v)))) where {T<:Number}
+    vn = norm(v)
+    (vn ≈ 1.) || println("input vector is not normalized, it will be renormalized as a quantum state.")
+    vv = zeros(T, 2^nqubits)
+    for i in 1:length(v)
+        vv[i] = v[i] / vn
+    end
+    return StateVector(vv, nqubits)
+end
+amplitude_encoding(v::AbstractVector; kwargs...) = amplitude_encoding(ComplexF64, v; kwargs...)
 
 function reset!(x::StateVector)
     fill!(storage(x), zero(eltype(x)))

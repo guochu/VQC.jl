@@ -16,6 +16,8 @@ end
     end
 end
 
+# @adjoint amplitude_encoding(::Type{T}, v::AbstractVector{<:Number}; kwargs...) where {T <: Number} = amplitude_encoding(
+#     T, v; kwargs...), z -> (nothing, z[1:length(v)])
 
 
 function back_propagate(Δ::AbstractVector, m::Gate, y::StateVector)
