@@ -78,4 +78,7 @@ end
     include("stategrad.jl")
 end
 
+@testset "test noisy quantum circuit" begin
+    include("check_noisy_grad.jl")
+end
 

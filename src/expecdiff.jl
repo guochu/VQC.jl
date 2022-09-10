@@ -17,7 +17,15 @@ function _qterm_expec_util(m::QubitsTerm, state::StateVector)
 	end
 end
 
-@adjoint expectation(m::QubitsTerm, state::StateVector) = _qterm_expec_util(m, state)
+# this could be slow
+# _qterm_expec_util(m::QubitsTerm, state::DensityMatrix) = expectation(m, state), z -> (
+# 	nothing,  storage((conj(z) * m + z * m') *  DensityMatrix(one(storage(state)), nqubits(state)))  )
+
+_qterm_expec_util(m::QubitsTerm, state::DensityMatrix) = expectation(m, state), z -> (
+	nothing,  storage((z * m') *  DensityMatrix(one(storage(state)), nqubits(state)))  )
+
+
+@adjoint expectation(m::QubitsTerm, state::Union{StateVector, DensityMatrix}) = _qterm_expec_util(m, state)
 
 function _qop_expec_util(m::QubitsOperator, state::StateVector)
 	if _largest_nterm(m) <= LARGEST_SUPPORTED_NTERMS
@@ -50,7 +58,13 @@ function _qop_expec_util(m::QubitsOperator, state::StateVector)
 		end
 	end	
 end
+# _qop_expec_util(m::QubitsOperator, state::DensityMatrix) = expectation(m, state), z -> (
+# 	nothing, storage( (conj(z) * m + z * m') * DensityMatrix(one(storage(state)), nqubits(state)) ) )
 
-@adjoint expectation(m::QubitsOperator, state::StateVector) = _qop_expec_util(m, state)
+_qop_expec_util(m::QubitsOperator, state::DensityMatrix) = expectation(m, state), z -> (
+	nothing, storage( (z * m') * DensityMatrix(one(storage(state)), nqubits(state)) ) )
+
+
+@adjoint expectation(m::QubitsOperator, state::Union{StateVector, DensityMatrix}) = _qop_expec_util(m, state)
 
 

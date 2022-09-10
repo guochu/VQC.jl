@@ -1,5 +1,5 @@
 
-@adjoint *(circuit::QCircuit, x::StateVector) = begin
+@adjoint *(circuit::QCircuit, x::Union{StateVector, DensityMatrix}) = begin
     y = circuit * x
     return y, Δ -> begin
         Δ, grads, y = back_propagate(copy(Δ), circuit, copy(y))
@@ -31,8 +31,34 @@ function back_propagate(Δ::AbstractVector, m::Gate, y::StateVector)
     return storage(Δ), ∇θs, y
 end
 
+# a temporary solution, which requires an additional copy of the density matrix
+# we can not assume x or y to be positive or hermitian here, since they may not be physical density matrix
+function expectation(x::DensityMatrix, m::Gate, y::DensityMatrix)
+    yc = copy(y)
+    apply_threaded!(m, yc.data)
+    return dot(storage(x)', storage(yc))
+end 
 
-function back_propagate(Δ::AbstractVector, circuit::QCircuit, y::StateVector)
+function back_propagate(Δ::AbstractMatrix, m::Gate, y::DensityMatrix)
+    Δ = DensityMatrix(Δ, nqubits(y))
+    Δ = apply!(m', Δ)
+    y = apply!(m', y)
+    ∇θs = nothing
+    if nparameters(m) > 0
+        ∇θs = [real(expectation(y, item, Δ) + expectation(Δ, item', y)) for item in differentiate(m)]
+    end
+    return storage(Δ), ∇θs, y
+end
+
+function back_propagate(Δ::AbstractMatrix, m::QuantumMap, y::DensityMatrix)
+    Δ = DensityMatrix(Δ, nqubits(y))
+    Δ = apply_dagger!(m, Δ)
+    y = apply_inverse!(m, y)
+    ∇θs = nothing
+    return storage(Δ), ∇θs, y
+end
+
+function back_propagate_util(Δ, circuit::QCircuit, y)
     RT = real(eltype(y))
     grads = Vector{RT}[]
     for item in reverse(circuit)
@@ -48,6 +74,11 @@ function back_propagate(Δ::AbstractVector, circuit::QCircuit, y::StateVector)
     return Δ, ∇θs_all, y
 end
 
+back_propagate(Δ::AbstractVector, circuit::QCircuit, y::StateVector) = back_propagate_util(Δ, circuit, y)
+back_propagate(Δ::AbstractMatrix, circuit::QCircuit, y::DensityMatrix) = back_propagate_util(Δ, circuit, y)
+ 
+ 
+
 
 # function back_propagate(Δ::AbstractMatrix, m::Gate, y::DensityMatrix)
 #     Δ = StateVector(Δ, nqubits(y))
@@ -59,3 +90,4 @@ end
 #     end
 #     return storage(Δ), ∇θs, y
 # end
+
