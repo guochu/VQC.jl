@@ -52,8 +52,7 @@ _apply_gate_threaded2!(key::Tuple{Int, Int, Int, Int}, U::AbstractMatrix, v::Abs
     key, SMatrix{16,16, eltype(v)}(U), v)
 
 # used in apply_serial when n = 4
-_apply_gate_2!(key::Tuple{Int, Int, Int, Int}, U::AbstractMatrix, v::AbstractVector) where T = _apply_gate_threaded2!(
-    key, U, v)
+_apply_gate_2!(key::Tuple{Int, Int, Int, Int}, U::AbstractMatrix, v::AbstractVector) = _apply_gate_threaded2!(key, U, v)
 
 
 # This takes forever to compile

@@ -1,5 +1,5 @@
 
-function swap!(qstate::AbstractVector, i::Int, j::Int) where T
+function swap!(qstate::AbstractVector, i::Int, j::Int)
 	(i == j) && return 
 	if i < j
 		fsize = 2^(i-1)
