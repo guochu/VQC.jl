@@ -42,11 +42,12 @@ end
 
 
 function _check_and_filter(v::AbstractArray{<:Real}; tol::Real=1.0e-12)
-	(abs(sum(v) - 1) <= tol) || throw(ArgumentError("sum of singular values not equal to 1."))
+	(abs(sum(v) - 1) <= tol) || throw(ArgumentError("sum of singular values not equal to 1"))
 	oo = zero(eltype(v))
 	tol = convert(eltype(v), tol)
 	for item in v
-		((item < oo) && (-item > tol)) && throw(ArgumentError("negative singular values."))
+		((item < oo) && (-item > tol)) && throw(ArgumentError("negative singular values"))
 	end
-	return [(abs(item) <= tol) ? oo : item for item in v]
+	# return [(abs(item) <= tol) ? oo : item for item in v]
+	return [item for item in v if abs(item) > tol] 
 end
