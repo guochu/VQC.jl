@@ -1,85 +1,78 @@
+"""
+    VQC
+
+QuantumCircuits IR 的**态矢量 / 密度矩阵模拟后端**。
+
+分层（对 QuantumCircuits 的依赖被完全隔离在 `ext/` 包扩展中，
+核心层不引用任何 IR 类型）：
+
+* **核心层**（`src/states` / `src/kernels` / `src/coreops` / `src/ops` /
+  `src/hamiltonian`）：态类型、局域矩阵 / Kraus 原语
+  （`apply_matrix!` / `apply_kraus!`）、测量 / 后选择 / 偏迹、矩阵期望值；
+* **接口扩展**（`ext/VQCQuantumCircuitsExt.jl`，`using QuantumCircuits`
+  时自动加载）：把 IR 指令（`GateOp` / `ChannelOp` / `MeasOp` / `ReinitOp` /
+  `BarrierOp` / `IfOp` / `BlockOp`）与 Pauli 代数桥接到核心原语，并提供
+  `simulate` / 经典寄存器运行时 / `nqubits` 与 `measure` 协议扩展；
+* **AD 扩展**（`ext/VQCZygoteExt.jl`，`using Zygote` + `using QuantumCircuits`
+  时自动加载）：一般参数门与含噪线路的自动微分。
+
+约定（与 QuantumCircuits 一致）：
+
+* 比特索引 **1-based**，小端序（qubit 1 = 最低有效位，与 Julia /
+  QuantumCircuits 惯例一致）；
+* 门矩阵约定：`GateOp.qubits` 列表中**第一个比特为矩阵最高位**。
+
+核心接口：
+
+* `apply!(state, op)`：把单条指令就地作用到态上；
+* `simulate(circuit, state; params)`：演化整条线路（非就地，支持符号参数）；
+* `expectation(h, state)`：`PauliSum` / `PauliTerm` / 一般矩阵的期望值；
+* `probabilities` / `measure!` / `measure` / `sample` / `post_select` /
+  `partial_tr`。
+"""
 module VQC
 
+using LinearAlgebra
+using Random
+using StaticArrays
 
-using Zygote
-using Zygote: @adjoint
+# ── 核心层（不依赖 QuantumCircuits） ─────────────────────────────────────────
 
+# ── 态 ──
+export StateVector, DensityMatrix, storage,
+       zero_state, rand_state, rand_densitymatrix,
+       onehot_encoding, qubit_encoding, amplitude_encoding, permute,
+       reset!, reset_onehot!, reset_qubit!, amplitude, amplitudes
 
-using LinearAlgebra, StaticArrays, QuantumCircuits, QuantumCircuits.Gates
-using QuantumCircuits: permute
-# import LinearAlgebra, QuantumCircuits
+# ── 线性代数 / 信息量 ──
+export fidelity, distance, distance2, schmidt_numbers, entropy, renyi_entropy
 
-# using KrylovKit: exponentiate
-# using SparseArrays: spzeros, sparse, SparseMatrixCSC
-# using Logging: @warn
+# ── 通用态原语 ──
+export apply_matrix!, apply_kraus!, reset_qubit_zero!
 
+# ── 测量 ──
+export probabilities, measure!, sample, post_select, post_select!
 
+# ── 可观测量 / 约化 ──
+export expectation, partial_tr
 
+include("auxiliary/auxiliary.jl")
+include("states/statevector.jl")
+include("states/densitymatrix.jl")
+include("kernels/kernels.jl")
+include("coreops.jl")
+include("ops/ops.jl")
+include("hamiltonian.jl")
 
-# statevector
-export StateVector, DensityMatrix, distance, distance2, onehot_encoding, qubit_encoding, amplitude_encoding, reset!, amplitude, amplitudes
-export tr, dot, norm, normalize!, normalize, ishermitian
-export reset_qubit!, reset_onehot!, storage, fidelity, rand_state, rand_densitymatrix, permute
-export schmidt_numbers, renyi_entropy
+# ── QuantumCircuits 接口存根 ─────────────────────────────────────────────────
+#
+# 核心层只声明泛型函数；方法由扩展 `VQCQuantumCircuitsExt`
+# （`using QuantumCircuits` 时自动加载）提供。
 
-# gate operations
-export apply!
+function simulate end
+function simulate! end
+function apply! end
 
-# measurement
-export measure, measure!
+export simulate, simulate!, apply!
 
-
-# hamiltonian
-export expectation
-
-# AD for post selection may be removed in the future
-export post_select, post_select!
-
-# partial trace
-export partial_tr
-
-# utility functions
-
-
-
-# auxiliary
-include("auxiliary/distance.jl")
-include("auxiliary/parallel_for.jl")
-include("auxiliary/sampling.jl")
-include("auxiliary/tensorops.jl")
-include("auxiliary/indexop.jl")
-
-# definitions of pure quantum gate
-include("statevector.jl")
-
-# density matrix representation 
-include("densitymatrix.jl")
-
-# quantum gate operations
-include("applygates/applygates.jl")
-
-
-# measurement and postselection
-include("measure.jl")
-include("postselect.jl")
-
-# hamiltonian expectation
-include("hamiltonian/util.jl")
-include("hamiltonian/apply_qterms/apply_qterms.jl")
-include("hamiltonian/expecs/expecs.jl")
-include("hamiltonian/expecs_dm/expecs_dm.jl")
-
-
-# differentiation
-include("circuitdiff.jl")
-include("expecdiff.jl")
-include("additional_adjoints.jl")
-
-# partial trace
-include("ptrace.jl")
-
-# utility functions
-include("utility/utility.jl")
-
-
-end
+end # module

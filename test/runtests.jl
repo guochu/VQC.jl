@@ -1,84 +1,46 @@
-push!(LOAD_PATH, "../src")
-
-include("util.jl")
-
 using Test
-using Zygote, LinearAlgebra
+using LinearAlgebra
+using VQC
+using QuantumCircuits
+using QuantumCircuits.Hamiltonian: PauliTerm, PauliSum
 
-using QuantumCircuits, QuantumCircuits.Gates
-using QuantumCircuits: n_qubits_mat_from_external
-using VQC, VQC.Utilities
-using VQC: apply_serial!
-
-_check_unitary(m::AbstractMatrix) = isapprox(m' * m, LinearAlgebra.I) 
-
-function from_external(key::NTuple{N, Int}, m::AbstractMatrix; check_unitary::Bool=true) where N
-    (size(m, 1) == 2^N) || error("wrong input matrix size.")
-    if check_unitary
-        _check_unitary(m) || error("input matrix is not unitary.")
+# 测试辅助：把局域矩阵 M（qs[1] = 矩阵最高位，1-based 比特号）嵌入 n 比特空间（小端序）。
+function embed_ref(M::AbstractMatrix, qs::Vector{Int}, n::Int)
+    qs0 = qs .- 1                        # 转内部 0-based 位号
+    d = 1 << n
+    D = 1 << length(qs0)
+    out = zeros(ComplexF64, d, d)
+    for col in 0:d-1
+        lc = 0
+        for (j, q) in enumerate(qs0)          # qs0[1] = MSB
+            lc = (lc << 1) | ((col >> q) & 1)
+        end
+        base = col
+        for q in qs0
+            base &= ~(1 << q)
+        end
+        for lrow in 0:D-1
+            grow = base
+            for (j, q) in enumerate(qs0)
+                grow |= ((lrow >> (length(qs0) - j)) & 1) << q
+            end
+            out[grow+1, col+1] = M[lrow+1, lc+1]
+        end
     end
-    return QuantumGate(key, n_qubits_mat_from_external(m))
-end  
-
-function random_unitary(n::Int)
-    L = 2^n
-    m = randn(ComplexF64, L, L)
-    return exp(im * (m + m'))
+    return out
 end
 
-
-@testset "test quantum gate operations" begin
-    include("check_gateop.jl")
-    include("check_high_qubit_gate.jl")
+@testset "VQC" verbose = true begin
+    include("states.jl")
+    include("gates.jl")
+    include("simulate.jl")
+    include("channels.jl")
+    include("measure.jl")
+    include("ptrace.jl")
+    include("expectation.jl")
+    if Base.find_package("Zygote") === nothing
+        @warn "Zygote is not available; AD tests are skipped."
+    else
+        include("ad.jl")
+    end
 end
-
-@testset "test quantum state initialization" begin
-    include("check_state_init.jl")
-end
-
-
-@testset "test qubit hamiltonian operations" begin
-    include("check_qubits_ham.jl")
-end
-
-@testset "test circuit parameters" begin
-    include("parameter.jl")
-end
-
-@testset "test measure and select" begin
-    include("check_measure.jl")
-end
-
-
-@testset "test quantum algorithm" begin
-    include("algs.jl")
-end
-
-@testset "test utility" begin
-    include("check_utility.jl")
-end
-
-
-@testset "test quantum circuit gradient" begin
-    include("circuitgrad.jl")
-    include("crxgategrad.jl")
-end
-
-
-@testset "test expectation value gradient" begin
-    include("check_ham_expec_diff.jl")
-end
-
-@testset "test quantum state gradient (may not variable via a quantum computer)" begin
-    include("stategrad.jl")
-end
-
-
-@testset "test density matrix operations" begin
-    include("stategrad.jl")
-end
-
-@testset "test noisy quantum circuit" begin
-    include("check_noisy_grad.jl")
-end
-

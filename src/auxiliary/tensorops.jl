@@ -1,53 +1,53 @@
+# tensorops.jl — 张量辅助（比特交换 / 熵）
 
-function swap!(qstate::AbstractVector, i::Int, j::Int)
-	(i == j) && return 
-	if i < j
-		fsize = 2^(i-1)
-		msize = 2^(j-i-1)
-		bsize = div(length(qstate), (fsize*4*msize))
-		s = reshape(qstate, (fsize, 2, msize, 2, bsize))
+"""
+    swap!(v::AbstractVector, i::Int, j::Int)
 
-		# tmp = Tensor{T}(undef, fsize, msize, bsize)
-		tmp = s[:, 1, :, 2, :]
-		s[:, 1, :, 2, :] = s[:, 2, :, 1, :]
-		s[:, 2, :, 1, :] = tmp
-	else
-		swap!(qstate, j, i)
-	end
+就地交换 1-based 比特 `i` 与 `j`（把 `v` 视为 2^n 振幅向量）。
+"""
+function swap!(v::AbstractVector, i::Int, j::Int)
+    (i == j) && return v
+    i > j && return swap!(v, j, i)
+    i -= 1
+    j -= 1
+    fsize = 1 << i
+    msize = 1 << (j - i - 1)
+    bsize = div(length(v), fsize * 4 * msize)
+    s = reshape(v, (fsize, 2, msize, 2, bsize))
+    tmp = s[:, 1, :, 2, :]
+    s[:, 1, :, 2, :] = s[:, 2, :, 1, :]
+    s[:, 2, :, 1, :] = tmp
+    return v
 end
 
-function _entropy(v::AbstractVector{<:Real}) 
-    a = [(abs(item) <= 1.0e-12) ? 0. : item for item in v]
-    a = [item for item in a if (item != 0.)]
-    s = sum(a)
-    a ./= s
-    return -dot(a, log2.(a))
+"""
+    entropy(p::AbstractVector{<:Real}; tol=1e-12)
+
+概率分布的香农熵（以 2 为底）。
+"""
+function entropy(v::AbstractVector{<:Real}; tol::Real=1e-12)
+    s = sum(v)
+    isapprox(s, 1.0; atol=1e-8) || throw(ArgumentError("input is not a probability distribution (sum = $s)"))
+    acc = 0.0
+    for item in v
+        item <= tol && continue
+        acc -= item * log2(item)
+    end
+    return acc
 end
 
-function entropy(v::AbstractArray{T, 1}) where {T <: Real}
-	a = _check_and_filter(v)
-	return -dot(a, log2.(a))
-end
+"""
+    renyi_entropy(p; α=2)
 
-function renyi_entropy(v::AbstractArray{T, 1}; α::Real=1) where T
-	α = convert(T, α)
-	if α==one(α)
-	    return entropy(v)
-	else
-		a = _check_and_filter(v)
-		a = v.^(α)
-		return (1/(1-α)) * log2(sum(a))
-	end
-end
-
-
-function _check_and_filter(v::AbstractArray{<:Real}; tol::Real=1.0e-12)
-	(abs(sum(v) - 1) <= tol) || throw(ArgumentError("sum of singular values not equal to 1"))
-	oo = zero(eltype(v))
-	tol = convert(eltype(v), tol)
-	for item in v
-		((item < oo) && (-item > tol)) && throw(ArgumentError("negative singular values"))
-	end
-	# return [(abs(item) <= tol) ? oo : item for item in v]
-	return [item for item in v if abs(item) > tol] 
+概率分布的 Rényi 熵（以 2 为底）；`α = 1` 退化为香农熵。
+"""
+function renyi_entropy(v::AbstractVector{<:Real}; α::Real=2)
+    α == 1 && return entropy(v)
+    α > 0 || throw(ArgumentError("α must be positive"))
+    acc = zero(float(eltype(v)))
+    for item in v
+        item > 0 || continue
+        acc += item^α
+    end
+    return 1 / (1 - α) * log2(acc)
 end
