@@ -1,7 +1,7 @@
 # spinop.jl — SpinOpTerm / SpinOpSum：构造、apply、expectation、adjoint
-# （mat 名与 QuantumCircuits.mat 撞名，此处用 VQC.mat 的局部别名）
+# （类型定义在 QuantumCircuits.Hamiltonian；mat 名与其撞名，此处用局部别名）
 
-const spin_mat = VQC.mat
+const spin_mat = QuantumCircuits.mat
 
 @testset "spinop" begin
     Random.seed!(1234)

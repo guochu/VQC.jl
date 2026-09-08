@@ -1,5 +1,6 @@
 using Documenter
 using QuantumCircuits
+using QuantumCircuits.Hamiltonian: SpinOpTerm, SpinOpSum
 using VQC
 
 makedocs(

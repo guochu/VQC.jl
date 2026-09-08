@@ -150,5 +150,6 @@ renyi_entropy(partial_tr(ψ, [1]))  # 单比特约化态的 Rényi-2 熵
 nothing
 ```
 
-自旋算符代数（`SpinOpTerm` / `SpinOpSum`，支持任意 2×2 局域算子）
+自旋算符代数（`SpinOpTerm` / `SpinOpSum`，类型定义在
+`QuantumCircuits.Hamiltonian`，支持任意 2×2 局域算子）
 与高效 `apply` / 期望值见[哈密顿量与自旋算符](@ref)。

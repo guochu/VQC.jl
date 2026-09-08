@@ -2,7 +2,12 @@ using Test
 using LinearAlgebra
 using VQC
 using QuantumCircuits
-using QuantumCircuits.Hamiltonian: PauliTerm, PauliSum
+using QuantumCircuits.Hamiltonian: PauliTerm, PauliSum, SpinOpTerm, SpinOpSum
+
+# 消歧：simulate / simulate! 由 QuantumCircuits.Interface 提供（基于态的方法
+# 在 VQCQuantumCircuitsExt 中）；expectation 用 VQC 的（态为参数的）版本。
+using QuantumCircuits.Interface: simulate, simulate!
+using VQC: expectation
 
 # 测试辅助：把局域矩阵 M（qs[1] = 矩阵最高位，1-based 比特号）嵌入 n 比特空间（小端序）。
 function embed_ref(M::AbstractMatrix, qs::Vector{Int}, n::Int)

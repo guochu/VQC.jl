@@ -1,13 +1,15 @@
 # 哈密顿量与自旋算符
 
-VQC 核心层提供自旋算符代数 `SpinOpTerm` / `SpinOpSum`
-（QuantumCircuits `PauliTerm` / `PauliSum` 的推广）：
+自旋算符代数 `SpinOpTerm` / `SpinOpSum` 的**类型定义**在
+`QuantumCircuits.Hamiltonian`（`PauliTerm` / `PauliSum` 的推广）：
 单个比特位上可以放 `Symbol` 简写（`:I / :X / :Y / :Z / :P / :M`）
-或**任意 `2×2` 矩阵**（不限 Pauli / 厄米）。
+或**任意 `2×2` 矩阵**（不限 Pauli / 厄米）。VQC 提供它们到态上的
+高效 `apply` 与 `expectation` 方法。
 
 ## 构造与代数
 
 ```@example
+using QuantumCircuits.Hamiltonian: SpinOpTerm, SpinOpSum
 using VQC
 
 t = SpinOpTerm(0.5, 1 => :Z, 2 => :Y)       # 0.5 · Z₁ Y₂
@@ -23,21 +25,21 @@ t + t2                                       # SpinOpTerm 相加 → SpinOpSum
 adjoint(ham)                                 # 厄米共轭
 ```
 
-```@docs
-SpinOpTerm
-SpinOpSum
-```
+类型定义与完整代数接口的 docstring 见
+QuantumCircuits 的 [Hamiltonian 子模块文档](https://quantumcircuits.docs)。
 
 ## 展开为矩阵（小规模验证用）
 
-`VQC.mat(ham, n)` 把 `SpinOpTerm` / `SpinOpSum` 展开为 `n` 比特的
-`2ⁿ × 2ⁿ` 稠密矩阵（`mat` 未导出，用 `VQC.mat` 引用），
-仅供小规模验证 / 对拍；大规模请走 `apply` 的局域核路径。
+`QuantumCircuits.mat(ham, n)` 把 `SpinOpTerm` / `SpinOpSum` 展开为
+`n` 比特的 `2ⁿ × 2ⁿ` 稠密矩阵，仅供小规模验证 / 对拍；
+大规模请走 `apply` 的局域核路径。
 
 ```@example
+using QuantumCircuits
+using QuantumCircuits.Hamiltonian: SpinOpTerm, SpinOpSum
 using VQC
 
-const mat = VQC.mat                          # mat 未导出
+const mat = QuantumCircuits.mat              # mat 定义在 QuantumCircuits
 
 ham = SpinOpSum([SpinOpTerm(0.5, 1 => :Z, 2 => :Z),
                  SpinOpTerm(1.0, 2 => :X)])
@@ -71,9 +73,10 @@ norm(storage(hamψ) - mat(ham, n) * storage(ψ))   # 与稠密矩阵一致
 每个 `exp(-iΔt Hₖ)` 逐项（必要时再分解到单因子）经 `apply` 作用：
 
 ```@example
+using QuantumCircuits.Hamiltonian: SpinOpTerm, SpinOpSum
 using VQC, LinearAlgebra
 
-const mat = VQC.mat
+const mat = QuantumCircuits.mat
 
 n, Δt = 2, 0.1
 ham = SpinOpSum([SpinOpTerm(1.0, 1 => :Z, 2 => :Z), SpinOpTerm(1.0, 2 => :X)])

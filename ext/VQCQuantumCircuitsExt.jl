@@ -21,16 +21,17 @@ import QuantumCircuits: nqubits, measure
 
 using VQC
 using VQC: StateVector, DensityMatrix, storage,
-           apply, apply_kraus!, reset_qubit_zero!,
+           apply_kraus!, reset_qubit_zero!,
            expect_kernel, dm_expect_kernel,
            _lsb_key, _nqubits,
            measure!
-import VQC: expectation, apply!, simulate, simulate!
+import VQC: apply, expectation, apply!
 
 include("quantumcircuits/ops.jl")
 include("quantumcircuits/classical.jl")
 include("quantumcircuits/simulate.jl")
 include("quantumcircuits/hamiltonian.jl")
+include("quantumcircuits/spinop.jl")
 
 export ClassicalStore
 
