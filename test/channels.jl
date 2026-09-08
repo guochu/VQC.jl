@@ -54,4 +54,23 @@
     # 纯态相干重置
     ψr = apply!(zero_state(1), X(1))
     @test apply!(copy(ψr), QuantumCircuits.reinit(1)) ≈ zero_state(1)
+
+    # ── 类型语义：以态的 eltype 为准 ──
+    # 实算子 + 实态 → 保持实类型；实算子 + 复态 → 保持复类型
+    ψre = StateVector(Float64[1.0, 0.0], 1)
+    out_re = apply!(copy(ψre), X(1))
+    @test eltype(out_re) == Float64
+    out_cx = apply!(copy(ψre), Depolarizing(1, p))   # 复 Kraus → 实态升复
+    @test eltype(out_cx) <: Complex
+    @test out_re ≈ onehot_encoding([1])
+    # 实 Kraus + 实态 → 保持实类型
+    ks_re = [Matrix{Float64}(I, 2, 2)]               # 单位算子
+    ρre = DensityMatrix(Float64[1.0 0.0; 0.0 0.0], 1)
+    out_k = apply_kraus!(ρre, ks_re, [1])
+    @test eltype(out_k) == Float64
+    @test out_k ≈ DensityMatrix(Float64[1.0 0.0; 0.0 0.0], 1)
+    # 复 Kraus + 实态 → 升复
+    ρre2 = DensityMatrix(Float64[1.0 0.0; 0.0 0.0], 1)
+    out_k2 = apply_kraus!(ρre2, [Matrix{ComplexF64}(I, 2, 2)], [1])
+    @test eltype(out_k2) <: Complex
 end

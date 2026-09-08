@@ -8,7 +8,9 @@ QuantumCircuits IR 的**态矢量 / 密度矩阵模拟后端**。
 
 * **核心层**（`src/states` / `src/kernels` / `src/coreops` / `src/ops` /
   `src/hamiltonian`）：态类型、局域矩阵 / Kraus 原语
-  （`apply_matrix!` / `apply_kraus!`）、测量 / 后选择 / 偏迹、矩阵期望值；
+  （`apply` / `apply_kraus!`）、测量 / 后选择 / 偏迹、矩阵期望值、
+  自旋算符代数（`SpinOpTerm` / `SpinOpSum`，支持任意单比特算子的
+  高效作用）；
 * **接口扩展**（`ext/VQCQuantumCircuitsExt.jl`，`using QuantumCircuits`
   时自动加载）：把 IR 指令（`GateOp` / `ChannelOp` / `MeasOp` / `ReinitOp` /
   `BarrierOp` / `IfOp` / `BlockOp`）与 Pauli 代数桥接到核心原语，并提供
@@ -48,7 +50,10 @@ export StateVector, DensityMatrix, storage,
 export fidelity, distance, distance2, schmidt_numbers, entropy, renyi_entropy
 
 # ── 通用态原语 ──
-export apply_matrix!, apply_kraus!, reset_qubit_zero!
+export apply, apply_kraus!, reset_qubit_zero!
+
+# ── 自旋算符代数 ──
+export SpinOpTerm, SpinOpSum
 
 # ── 测量 ──
 export probabilities, measure!, sample, post_select, post_select!

@@ -38,6 +38,7 @@ end
     include("measure.jl")
     include("ptrace.jl")
     include("expectation.jl")
+    include("spinop.jl")
     if Base.find_package("Zygote") === nothing
         @warn "Zygote is not available; AD tests are skipped."
     else

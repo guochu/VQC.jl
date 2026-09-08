@@ -25,11 +25,11 @@ end
 中的符号参数。
 """
 function apply!(s::StateVector, op::GateOp, table::Union{Nothing,AbstractDict}=nothing)
-    return apply_matrix!(s, mat(op, table), qubits(op))
+    return apply(s, mat(op, table), qubits(op))
 end
 
 function apply!(s::DensityMatrix, op::GateOp, table::Union{Nothing,AbstractDict}=nothing)
-    return apply_matrix!(s, mat(op, table), qubits(op))
+    return apply(s, mat(op, table), qubits(op))
 end
 
 # ── ChannelOp ────────────────────────────────────────────────────────────────

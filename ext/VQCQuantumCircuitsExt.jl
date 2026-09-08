@@ -4,7 +4,7 @@
 # （`using QuantumCircuits` 时自动加载）：把 IR 指令
 # （GateOp / ChannelOp / MeasOp / ReinitOp / BarrierOp / IfOp / BlockOp）
 # 与 Pauli 代数桥接到核心层的通用原语
-# （`apply_matrix!` / `apply_kraus!` / `measure!` / …）上。
+# （`apply` / `apply_kraus!` / `measure!` / …）上。
 #
 # 公开入口：`simulate` / `simulate!` / `apply!`（方法添加到 VQC 的存根
 # 泛型函数上，由 VQC 导出）与 `ClassicalStore`；另扩展 QuantumCircuits
@@ -21,7 +21,7 @@ import QuantumCircuits: nqubits, measure
 
 using VQC
 using VQC: StateVector, DensityMatrix, storage,
-           apply_matrix!, apply_kraus!, reset_qubit_zero!,
+           apply, apply_kraus!, reset_qubit_zero!,
            expect_kernel, dm_expect_kernel,
            _lsb_key, _nqubits,
            measure!

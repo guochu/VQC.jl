@@ -15,9 +15,11 @@
 _lsb_key(positions::Vector{Int}) = ntuple(i -> positions[length(positions)+1-i] - 1, Val(length(positions)))
 
 _ensure_complex(s::StateVector) =
-    eltype(s) <: Complex ? s : StateVector(convert(Vector{ComplexF64}, storage(s)), _nqubits(s))
+    eltype(s) <: Complex ? s :
+    StateVector(convert(Vector{complex(float(eltype(s)))}, storage(s)), _nqubits(s))
 _ensure_complex(s::DensityMatrix) =
-    eltype(s) <: Complex ? s : DensityMatrix(convert(Vector{ComplexF64}, s.data), _nqubits(s))
+    eltype(s) <: Complex ? s :
+    DensityMatrix(convert(Vector{complex(float(eltype(s)))}, s.data), _nqubits(s))
 
 function _check_positions(positions::Vector{Int}, n::Int)
     length(unique(positions)) == length(positions) || throw(ArgumentError("duplicate qubit positions"))
@@ -26,7 +28,7 @@ function _check_positions(positions::Vector{Int}, n::Int)
 end
 
 """
-    apply_matrix!(state, m::AbstractMatrix, positions::Vector{Int}) -> state
+    apply(state, m::AbstractMatrix, positions::Vector{Int}) -> state
 
 把 `length(positions)` 比特局域矩阵 `m`（`positions[1]` = 矩阵最高位，
 1-based 比特位置）作用到态上：
@@ -36,7 +38,7 @@ end
 
 实数态遇复矩阵自动提升为 `ComplexF64`（返回值可能是新对象）。
 """
-function apply_matrix!(s::StateVector, m::AbstractMatrix, positions::Vector{Int})
+function apply(s::StateVector, m::AbstractMatrix, positions::Vector{Int})
     _check_positions(positions, _nqubits(s))
     size(m, 1) == size(m, 2) == 1 << length(positions) ||
         throw(ArgumentError("matrix size $(size(m)) does not match $(length(positions)) qubit(s)"))
@@ -47,7 +49,7 @@ function apply_matrix!(s::StateVector, m::AbstractMatrix, positions::Vector{Int}
     return s
 end
 
-function apply_matrix!(s::DensityMatrix, m::AbstractMatrix, positions::Vector{Int})
+function apply(s::DensityMatrix, m::AbstractMatrix, positions::Vector{Int})
     n = _nqubits(s)
     _check_positions(positions, n)
     size(m, 1) == size(m, 2) == 1 << length(positions) ||
@@ -68,32 +70,41 @@ end
 
 * `DensityMatrix`：`ρ ← Σₖ kₖ ρ kₖ†`（就地）；
 * `StateVector`：先转换为 `DensityMatrix`（返回值类型因此改变）。
+
+实现：先把 Kraus 集合组合成单个局域超算子
+`m = Σₖ kron(kₖ, conj(kₖ))`（`D²×D²`），再经 `apply_kernel_dm!` 一次
+作用到密度矩阵的平坦存储上——过程中不复制整个量子态。
+
+算子矩阵转换到态的 `eltype` 后作用；实数态遇复算子自动提升为
+复数版本（返回值可能是新对象）。
 """
 function apply_kraus!(s::StateVector, ks, positions::Vector{Int})
-    return apply_kraus!(DensityMatrix(_ensure_complex(s)), ks, positions)
+    if eltype(s) <: Real && any(K -> !(eltype(K) <: Real), ks)
+        s = _ensure_complex(s)
+    end
+    return apply_kraus!(DensityMatrix(s), ks, positions)
 end
 
 function apply_kraus!(s::DensityMatrix, ks, positions::Vector{Int})
     n = _nqubits(s)
     _check_positions(positions, n)
     isempty(ks) && return s
-    d = size(ks[1], 1)
-    d == 1 << length(positions) ||
-        throw(ArgumentError("operator dimension $(d) does not match $(length(positions)) qubit(s)"))
-    if eltype(s) <: Real
+    D = size(ks[1], 1)
+    D == 1 << length(positions) ||
+        throw(ArgumentError("operator dimension $(D) does not match $(length(positions)) qubit(s)"))
+    if eltype(s) <: Real && any(K -> !(eltype(K) <: Real), ks)
         s = _ensure_complex(s)
     end
-    key = _lsb_key(positions)
-    keyc = ntuple(i -> key[i] + n, Val(length(positions)))
-    tmp = similar(s.data)
-    out = zero(s.data)
+    T = eltype(s)
+    M = zeros(T, D * D, D * D)
     for K in ks
-        copyto!(tmp, s.data)
-        apply_kernel!(tmp, key, K)
-        apply_kernel!(tmp, keyc, conj(K))
-        out .+= tmp
+        size(K, 1) == size(K, 2) == D ||
+            throw(ArgumentError("all Kraus operators must be $(D)×$(D)"))
+        # ρ'[(i,j)] = Σₖ Σ_{i',j'} k[i,i'] ρ[i',j'] conj(k[j,j'])
+        # 平坦布局 ρ[i + d·j] 中行索引为低位 → 超算子 = kron(conj(k), k)
+        M .+= kron(conj(convert(Matrix{T}, K)), convert(Matrix{T}, K))
     end
-    copyto!(s.data, out)
+    apply_kernel_dm!(s.data, 1 << n, _lsb_key(positions), M)
     return s
 end
 

@@ -1,19 +1,61 @@
 # kernels.jl — 底层计算核：局域酉算子作用与期望值
+#
+# 性能设计（对齐原始 VQC 的思路，用批打包通用化）：
+#   * 门的比特数 `N` 由 `key::NTuple{N,Int}` 在**编译期**给出——
+#     不存在运行期动态维度，所有循环界均为静态；
+#   * 门恰占据**最低 N 个连续位**时（`skey == (0,…,N-1)`，最常见情形），
+#     每个局域块是连续的 `2^N` 个振幅——一次 gathers `K` 个连续块打包为
+#     `SMatrix{D,K}`，用一次 `U * V` 批量完成（内存连续、SIMD 友好）；
+#   * 其它位置布局走逐块静态展开（正确性优先，gather 跨步固定）；
+#   * 期望值核同理：`Σₖ ⟨vₖ|U|vₖ⟩ = sum(V .* (U * V))`；
+#   * 多线程由 `_run_range` / `_run_range_sum` 按批分块。
 
 # 约定：
 #   * `key::NTuple{N,Int}` 为 **LSB-first、0-based** 的比特位置元组；
 #   * 局域矩阵 `U` 的行列索引按 `key` 顺序小端展开
 #     （即 `key[1]` 对应矩阵索引的最低位）；
-#   * 由 `GateOp.qubits`（MSB-first）转换：`key = reverse(qs)`；
+#   * 由 `GateOp.qubits`（MSB-first）转换：`key = _lsb_key(qs)`；
 #   * `_bit_insert_zeros` 的逐步插入算法要求升序处理，故 `base` 计算使用
 #     排序后的 `skey`（集合相同，顺序无关）；`offs` 仍用原 `key`（决定矩阵位序）。
 
-_sorted_key(key::Tuple{Vararg{Int}}) = Tuple(sort!(collect(Int, key)))
+_sorted_key(key::NTuple{N,Int}) where {N} = Tuple(sort!(collect(Int, key)))
+
+# 批处理块数（全局可调）：门在最低连续位时，一次 gathers `K` 个连续块
+# 打包为 `SMatrix{D,K}` 批量乘。现代机器缓存较大，可按硬件调大
+# （16 / 32 / 64）；不同取值会各自编译专门的 kernel 版本（`Val{K}` 常量化）。
+const _KERNEL_BATCH = Ref(16)
+
+"""
+    kernel_batch() -> Int
+
+查询 kernel 批处理的块数（每批 gather 的局域块个数）。
+"""
+kernel_batch() = _KERNEL_BATCH[]
+
+"""
+    set_kernel_batch!(n::Integer) -> Int
+
+设置 kernel 批处理的块数（默认 16，须为 2 的幂）。缓存较大时可调大
+（如 32 / 64）；取值越大单批的寄存器 / 编译产物越大，过大反而可能因
+寄存器溢出变慢，建议按硬件实测选择。下一次 kernel 调用即生效。
+"""
+function set_kernel_batch!(n::Integer)
+    n >= 1 || throw(ArgumentError("batch size must be positive"))
+    ispow2(n) || throw(ArgumentError("batch size must be a power of 2, got $n"))
+    _KERNEL_BATCH[] = Int(n)
+    return Int(n)
+end
+
+# 基础位操作工具（`_bit_insert_zeros` / `_offsets` / `_interleave` / `_scatter`）
+# 定义见 `auxiliary/indexops.jl`。
+
+# ── apply：局域酉算子作用 ────────────────────────────────────────────────────
 
 """
     apply_kernel!(v::AbstractVector, key::NTuple{N,Int}, U::AbstractMatrix) -> v
 
 把 `N` 比特局域矩阵 `U` 就地作用到振幅向量 `v` 上（`key` LSB-first、0-based）。
+`U` 被转换到 `eltype(v)` 后作用；门位于最低连续位时走连续批打包路径。
 """
 function apply_kernel!(v::AbstractVector, key::NTuple{N,Int}, U::AbstractMatrix) where {N}
     D = 1 << N
@@ -21,26 +63,46 @@ function apply_kernel!(v::AbstractVector, key::NTuple{N,Int}, U::AbstractMatrix)
         throw(ArgumentError("matrix size $(size(U)) does not match $N qubit(s)"))
     nred = length(v) >> N
     skey = _sorted_key(key)
-    if N <= 4
-        Us = SMatrix{D,D,eltype(v)}(U)
-        offs = _offsets(key)
-        _run_range(nred) do istart, iend
-            _apply_static_range!(v, Us, skey, offs, istart, iend)
+    offs = _offsets(key)
+    Uc = SMatrix{D,D,eltype(v)}(U)
+    if offs == ntuple(j -> j - 1, Val(D))
+        # 门恰为最低 N 个连续位：块连续，按批打包
+        K = min(_KERNEL_BATCH[], D)
+        nchunk, ntail = divrem(nred, K)
+        nchunk > 0 && _run_range(nchunk) do a, b
+            _apply_batched_range!(v, Uc, a, b, Val(K), Val(N))
         end
+        ntail > 0 && _apply_single_range!(v, Uc, skey, offs,
+                                          nchunk * K, nred - 1)
     else
-        offs = collect(Int, _offsets(key))
-        _run_range(nred) do istart, iend
-            _apply_dynamic_range!(v, U, skey, offs, istart, iend)
+        _run_range(nred) do a, b
+            _apply_single_range!(v, Uc, skey, offs, a, b)
         end
     end
     return v
 end
 
-function _apply_static_range!(v::AbstractVector{T}, U::SMatrix{D,D},
+"`K` 个连续块（每块 `D = 2^N` 个连续振幅）打包为 `SMatrix{D,K}` 一次乘完。"
+function _apply_batched_range!(v::AbstractVector{T}, U::SMatrix{D,D,T},
+                               istart::Int, iend::Int, ::Val{K}, ::Val{N}) where {T,D,K,N}
+    len = D * K
+    @inbounds for t in istart:iend
+        base0 = len * t
+        V = SMatrix{D,K,T}(ntuple(j -> v[base0 + j], Val(len)))
+        O = U * V
+        for j in 1:len
+            v[base0 + j] = O[j]
+        end
+    end
+    return nothing
+end
+
+"逐块静态展开（任意位置布局；批处理尾部与高位门共用）。"
+function _apply_single_range!(v::AbstractVector{T}, U::SMatrix{D,D,T},
                               skey::NTuple{N,Int}, offs::NTuple{D,Int},
-                              istart::Int, iend::Int) where {T,N,D}
-    @inbounds for r in istart:iend
-        base = _bit_insert_zeros(r, skey)
+                              istart::Int, iend::Int) where {T,D,N}
+    @inbounds for rest in istart:iend
+        base = _bit_insert_zeros(rest, skey)
         loc = SVector{D,T}(ntuple(i -> v[base + offs[i] + 1], Val(D)))
         out = U * loc
         for i in 1:D
@@ -50,31 +112,56 @@ function _apply_static_range!(v::AbstractVector{T}, U::SMatrix{D,D},
     return nothing
 end
 
-function _apply_dynamic_range!(v::AbstractVector, U::AbstractMatrix,
-                               skey::Tuple{Vararg{Int}}, offs::Vector{Int},
-                               istart::Int, iend::Int)
-    D = length(offs)
-    T = eltype(v)
-    loc = Vector{T}(undef, D)
-    out = Vector{T}(undef, D)
-    @inbounds for r in istart:iend
-        base = _bit_insert_zeros(r, skey)
-        for j in 1:D
-            loc[j] = v[base + offs[j] + 1]
-        end
-        for i in 1:D
-            acc = zero(T)
-            @simd for j in 1:D
-                acc += U[i, j] * loc[j]
-            end
-            out[i] = acc
-        end
-        for i in 1:D
-            v[base + offs[i] + 1] = out[i]
+# ── apply_kernel_dm：密度矩阵平坦存储上的局域算子作用 ────────────────────────
+
+"""
+    apply_kernel_dm!(rho::AbstractVector, d::Int, key::NTuple{N,Int}, m::AbstractMatrix) -> rho
+
+把 `N` 比特局域**超算子** `m`（`D²×D²`，`D = 2^N`）就地作用到密度矩阵的
+平坦存储 `rho`（长度 `d²`，列 major）上：每个局域块 `ρ₍ᵢⱼ₎`（`D²` 个元素，
+`ρ₍ᵢⱼ₎ = ρ[b+ᵢ, b+ⱼ]`，`b` 为块基址）被 `m · vec(ρ₍ᵢⱼ₎)` 替换。供 Kraus
+等局域量子信道使用（`m = Σₖ kron(conj(kₖ), kₖ)`）。
+
+`m` 的行 / 列索引按 `key` 小端展开（与局域密度块收集布局一致）。
+"""
+function apply_kernel_dm!(rho::AbstractVector, d::Int, key::NTuple{N,Int}, m::AbstractMatrix) where {N}
+    D2 = 1 << (2 * N)
+    (size(m, 1) == size(m, 2) == D2) ||
+        throw(ArgumentError("matrix size $(size(m)) does not match $N qubit(s)"))
+    nred = d >> N                 # 行（或列）非 key 位组合数
+    skey = _sorted_key(key)
+    offs = _offsets(key)
+    Mc = SMatrix{D2,D2,eltype(rho)}(m)
+    D = 1 << N
+    nblk = nred * nred            # (行基址, 列基址) 独立遍历
+    _run_range(nblk) do a, b
+        _dm_apply_single_range!(rho, d, Mc, skey, offs, a, b, Val(D), Val(N), nred)
+    end
+    return rho
+end
+
+function _dm_apply_single_range!(rho::AbstractVector{T}, d::Int, m::SMatrix{D2,D2,T},
+                                 skey::NTuple{N,Int}, offs::NTuple{D,Int},
+                                 istart::Int, iend::Int, ::Val{D}, ::Val{N},
+                                 nred::Int) where {T,D,N,D2}
+    @inbounds for rest in istart:iend
+        br, bc = divrem(rest, nred)   # 行基址块 / 列基址块（相互独立）
+        row = _bit_insert_zeros(br, skey)
+        col = _bit_insert_zeros(bc, skey)
+        loc = SVector{D2,T}(ntuple(i -> begin
+            lj, li = divrem(i - 1, D)    # i - 1 = li + D*lj（列 major：li 为行局域索引）
+            rho[row + offs[li+1] + d * (col + offs[lj+1]) + 1]
+        end, Val(D2)))
+        out = m * loc
+        for i in 1:D2
+            lj, li = divrem(i - 1, D)
+            rho[row + offs[li+1] + d * (col + offs[lj+1]) + 1] = out[i]
         end
     end
     return nothing
 end
+
+# ── expect：局域矩阵元 ⟨v|U|v⟩ / ⟨vc|U|v⟩ ───────────────────────────────────
 
 """
     expect_kernel(v::AbstractVector, key::NTuple{N,Int}, U::AbstractMatrix) -> scalar
@@ -88,18 +175,26 @@ function expect_kernel(v::AbstractVector, key::NTuple{N,Int}, U::AbstractMatrix)
     OT = promote_type(eltype(v), eltype(U))
     nred = length(v) >> N
     skey = _sorted_key(key)
-    if N <= 4
-        Us = SMatrix{D,D,eltype(v)}(U)
-        offs = _offsets(key)
-        return _run_range_sum(OT, nred) do istart, iend
-            _expect_static_range(v, Us, skey, offs, istart, iend)
+    offs = _offsets(key)
+    Uc = SMatrix{D,D,OT}(U)
+    acc = zero(OT)
+    if offs == ntuple(j -> j - 1, Val(D))
+        K = min(_KERNEL_BATCH[], D)
+        nchunk, ntail = divrem(nred, K)
+        if nchunk > 0
+            acc += _run_range_sum(OT, nchunk) do a, b
+                _expect_batched_range(v, Uc, a, b, Val(K), Val(N))
+            end
+        end
+        if ntail > 0
+            acc += _expect_single_range(v, Uc, skey, offs, nchunk * K, nred - 1)
         end
     else
-        offs = collect(Int, _offsets(key))
-        return _run_range_sum(OT, nred) do istart, iend
-            _expect_dynamic_range(v, U, skey, offs, istart, iend)
+        acc = _run_range_sum(OT, nred) do a, b
+            _expect_single_range(v, Uc, skey, offs, a, b)
         end
     end
+    return acc
 end
 
 """
@@ -115,38 +210,74 @@ function expect_kernel(vc::AbstractVector, v::AbstractVector, key::NTuple{N,Int}
     OT = promote_type(eltype(vc), eltype(v), eltype(U))
     nred = length(v) >> N
     skey = _sorted_key(key)
-    if N <= 4
-        Us = SMatrix{D,D,eltype(v)}(U)
-        offs = _offsets(key)
-        return _run_range_sum(OT, nred) do istart, iend
-            _expect2_static_range(vc, v, Us, skey, offs, istart, iend)
+    offs = _offsets(key)
+    Uc = SMatrix{D,D,OT}(U)
+    acc = zero(OT)
+    if offs == ntuple(j -> j - 1, Val(D))
+        K = min(_KERNEL_BATCH[], D)
+        nchunk, ntail = divrem(nred, K)
+        if nchunk > 0
+            acc += _run_range_sum(OT, nchunk) do a, b
+                _expect2_batched_range(vc, v, Uc, a, b, Val(K), Val(N))
+            end
+        end
+        if ntail > 0
+            acc += _expect2_single_range(vc, v, Uc, skey, offs, nchunk * K, nred - 1)
         end
     else
-        offs = collect(Int, _offsets(key))
-        return _run_range_sum(OT, nred) do istart, iend
-            _expect2_dynamic_range(vc, v, U, skey, offs, istart, iend)
+        acc = _run_range_sum(OT, nred) do a, b
+            _expect2_single_range(vc, v, Uc, skey, offs, a, b)
         end
     end
+    return acc
 end
 
-function _expect_static_range(v::AbstractVector{T}, U::SMatrix{D,D},
+"`K` 个连续块的 `Σₖ ⟨vₖ|U|vₖ⟩ = sum(conj(V) .* (U * V))` 批量累积。"
+function _expect_batched_range(v::AbstractVector{T}, U::SMatrix{D,D,OT},
+                               istart::Int, iend::Int, ::Val{K}, ::Val{N}) where {T,OT,D,K,N}
+    len = D * K
+    acc = zero(OT)
+    @inbounds for t in istart:iend
+        base0 = len * t
+        V = SMatrix{D,K,T}(ntuple(j -> v[base0 + j], Val(len)))
+        acc += sum(conj(V) .* (U * V))
+    end
+    return acc
+end
+
+"`K` 个连续块的 `Σₖ ⟨vcₖ|U|vₖ⟩` 批量累积。"
+function _expect2_batched_range(vc::AbstractVector, v::AbstractVector{T},
+                                U::SMatrix{D,D,OT}, istart::Int, iend::Int,
+                                ::Val{K}, ::Val{N}) where {T,OT,D,K,N}
+    len = D * K
+    acc = zero(OT)
+    @inbounds for t in istart:iend
+        base0 = len * t
+        V = SMatrix{D,K,T}(ntuple(j -> v[base0 + j], Val(len)))
+        Vc = SMatrix{D,K,OT}(ntuple(j -> vc[base0 + j], Val(len)))
+        acc += sum(conj(Vc) .* (U * V))
+    end
+    return acc
+end
+
+function _expect_single_range(v::AbstractVector{T}, U::SMatrix{D,D,OT},
                               skey::NTuple{N,Int}, offs::NTuple{D,Int},
-                              istart::Int, iend::Int) where {T,N,D}
-    acc = zero(promote_type(T, eltype(U)))
-    @inbounds for r in istart:iend
-        base = _bit_insert_zeros(r, skey)
+                              istart::Int, iend::Int) where {T,OT,D,N}
+    acc = zero(OT)
+    @inbounds for rest in istart:iend
+        base = _bit_insert_zeros(rest, skey)
         loc = SVector{D,T}(ntuple(i -> v[base + offs[i] + 1], Val(D)))
         acc += dot(loc, U, loc)
     end
     return acc
 end
 
-function _expect2_static_range(vc::AbstractVector, v::AbstractVector{T}, U::SMatrix{D,D},
-                               skey::NTuple{N,Int}, offs::NTuple{D,Int},
-                               istart::Int, iend::Int) where {T,N,D}
-    acc = zero(promote_type(eltype(vc), T, eltype(U)))
-    @inbounds for r in istart:iend
-        base = _bit_insert_zeros(r, skey)
+function _expect2_single_range(vc::AbstractVector, v::AbstractVector{T},
+                               U::SMatrix{D,D,OT}, skey::NTuple{N,Int},
+                               offs::NTuple{D,Int}, istart::Int, iend::Int) where {T,OT,D,N}
+    acc = zero(OT)
+    @inbounds for rest in istart:iend
+        base = _bit_insert_zeros(rest, skey)
         loc = SVector{D,T}(ntuple(i -> v[base + offs[i] + 1], Val(D)))
         loc_c = SVector{D,eltype(vc)}(ntuple(i -> vc[base + offs[i] + 1], Val(D)))
         acc += dot(loc_c, U, loc)
@@ -154,54 +285,7 @@ function _expect2_static_range(vc::AbstractVector, v::AbstractVector{T}, U::SMat
     return acc
 end
 
-function _expect_dynamic_range(v::AbstractVector, U::AbstractMatrix,
-                               skey::Tuple{Vararg{Int}}, offs::Vector{Int},
-                               istart::Int, iend::Int)
-    D = length(offs)
-    T = eltype(v)
-    OT = promote_type(T, eltype(U))
-    loc = Vector{T}(undef, D)
-    acc = zero(OT)
-    @inbounds for r in istart:iend
-        base = _bit_insert_zeros(r, skey)
-        for j in 1:D
-            loc[j] = v[base + offs[j] + 1]
-        end
-        for i in 1:D
-            acc_i = zero(OT)
-            @simd for j in 1:D
-                acc_i += conj(loc[i]) * U[i, j] * loc[j]
-            end
-            acc += acc_i
-        end
-    end
-    return acc
-end
-
-function _expect2_dynamic_range(vc::AbstractVector, v::AbstractVector, U::AbstractMatrix,
-                                skey::Tuple{Vararg{Int}}, offs::Vector{Int},
-                                istart::Int, iend::Int)
-    D = length(offs)
-    OT = promote_type(eltype(vc), eltype(v), eltype(U))
-    loc = Vector{eltype(v)}(undef, D)
-    loc_c = Vector{eltype(vc)}(undef, D)
-    acc = zero(OT)
-    @inbounds for r in istart:iend
-        base = _bit_insert_zeros(r, skey)
-        for j in 1:D
-            loc[j] = v[base + offs[j] + 1]
-            loc_c[j] = vc[base + offs[j] + 1]
-        end
-        for i in 1:D
-            acc_i = zero(OT)
-            @simd for j in 1:D
-                acc_i += conj(loc_c[i]) * U[i, j] * loc[j]
-            end
-            acc += acc_i
-        end
-    end
-    return acc
-end
+# ── dm_expect：局域矩阵元 tr(ρ m) ────────────────────────────────────────────
 
 """
     dm_expect_kernel(rho::AbstractVector, d::Int, key::NTuple{N,Int}, m::AbstractMatrix) -> scalar
@@ -218,25 +302,54 @@ function dm_expect_kernel(rho::AbstractVector, d::Int, key::NTuple{N,Int}, m::Ab
     mv = vec(transpose(m))   # 与 ρ 局域块 (row + D*col) 的收集布局对齐
     nred = d >> N
     skey = _sorted_key(key)
-    if N <= 4
-        mv_s = SVector{D * D,eltype(m)}(mv)
-        offs = _offsets(key)
-        return _run_range_sum(OT, nred) do istart, iend
-            _dm_expect_static_range(rho, d, mv_s, skey, offs, istart, iend)
+    offs = _offsets(key)
+    mvs = SVector{D*D,OT}(mv)
+    acc = zero(OT)
+    if offs == ntuple(j -> j - 1, Val(D))
+        K = min(_KERNEL_BATCH[], D)
+        nchunk, ntail = divrem(nred, K)
+        if nchunk > 0
+            acc += _run_range_sum(OT, nchunk) do a, b
+                _dm_expect_batched_range(rho, d, mvs, skey, offs, a, b, Val(K), Val(N))
+            end
+        end
+        if ntail > 0
+            acc += _dm_expect_single_range(rho, d, mvs, skey, offs, nchunk * K, nred - 1)
         end
     else
-        offs = collect(Int, _offsets(key))
-        mvv = Vector{eltype(m)}(mv)
-        return _run_range_sum(OT, nred) do istart, iend
-            _dm_expect_dynamic_range(rho, d, mvv, skey, offs, istart, iend)
+        acc = _run_range_sum(OT, nred) do a, b
+            _dm_expect_single_range(rho, d, mvs, skey, offs, a, b)
         end
     end
+    return acc
 end
 
-function _dm_expect_static_range(rho::AbstractVector{T}, d::Int, mv::SVector{D2},
+"`K` 个连续块的 `Σₖ tr(ρₖ m)` 批量累积（局域块收集跨步 `d`）。"
+function _dm_expect_batched_range(rho::AbstractVector{T}, d::Int, mv::SVector{D2,OT},
+                                  skey::NTuple{N,Int}, offs::NTuple{D,Int},
+                                  istart::Int, iend::Int, ::Val{K}, ::Val{N}) where {T,OT,D,N,D2,K}
+    kk = trailing_zeros(K)
+    skey_pfx = ntuple(i -> skey[i], Val(kk))
+    Pk = ntuple(k -> _bit_insert_zeros(k - 1, skey), Val(K))
+    Mv = hcat(fill(mv, K)...)   # 每列都是 mv
+    acc = zero(OT)
+    @inbounds for t in istart:iend
+        base0 = _bit_insert_zeros(K * t, skey)
+        V = SMatrix{D2,K,T}(ntuple(j -> begin
+            k, i = fldmod(j - 1, D2)
+            lj, li = divrem(i, D)        # i = li + D*lj（列 major：li 为行局域索引）
+            b = base0 + Pk[k+1]
+            rho[b + li + d * (b + lj) + 1]
+        end, Val(D2 * K)))
+        acc += sum(V .* Mv)
+    end
+    return acc
+end
+
+function _dm_expect_single_range(rho::AbstractVector{T}, d::Int, mv::SVector{D2,OT},
                                  skey::NTuple{N,Int}, offs::NTuple{D,Int},
-                                 istart::Int, iend::Int) where {T,N,D,D2}
-    acc = zero(promote_type(T, eltype(mv)))
+                                 istart::Int, iend::Int) where {T,OT,D,N,D2}
+    acc = zero(OT)
     @inbounds for rest in istart:iend
         base = _bit_insert_zeros(rest, skey)
         loc = SVector{D2,T}(ntuple(i -> begin
@@ -247,27 +360,6 @@ function _dm_expect_static_range(rho::AbstractVector{T}, d::Int, mv::SVector{D2}
             rho[ri + d * ci + 1]
         end, Val(D2)))
         acc += sum(loc .* mv)
-    end
-    return acc
-end
-
-function _dm_expect_dynamic_range(rho::AbstractVector, d::Int, mv::Vector,
-                                  skey::Tuple{Vararg{Int}}, offs::Vector{Int},
-                                  istart::Int, iend::Int)
-    D = length(offs)
-    OT = promote_type(eltype(rho), eltype(mv))
-    acc = zero(OT)
-    @inbounds for rest in istart:iend
-        base = _bit_insert_zeros(rest, skey)
-        acc_k = zero(OT)
-        for i in 1:D
-            k = i - 1
-            lj, li = divrem(k, D)
-            ri = base + offs[li+1]
-            ci = base + offs[lj+1]
-            acc_k += rho[ri + d * ci + 1] * mv[i]
-        end
-        acc += acc_k
     end
     return acc
 end
