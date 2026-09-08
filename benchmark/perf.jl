@@ -58,7 +58,7 @@ open(path, "w") do io
                         # VQC（当前 batch size）
                         v = randn(T, 1 << n)
                         sv = StateVector(v, n)
-                        t_vqc = bench_min(() -> apply(sv, U, locs))
+                        t_vqc = bench_min(() -> apply!(sv, U, locs))
                         println(io, "$n,$T,$nb,$loctag,$K,$(Threads.nthreads()),$(t_vqc * 1e3),VQC")
                         @printf("  %d-qubit %-6s  VQC   %10.3f ms\n", nb, loctag, t_vqc * 1e3)
                         # Yao（仅第一个 batch size）

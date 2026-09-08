@@ -8,7 +8,7 @@ QuantumCircuits IR 的**态矢量 / 密度矩阵模拟后端**。
 
 * **核心层**（`src/states` / `src/kernels` / `src/coreops` / `src/ops` /
   `src/hamiltonian`）：态类型、局域矩阵 / Kraus 原语
-  （`apply` / `apply_kraus!`）、测量 / 后选择 / 偏迹、矩阵期望值、
+  （`apply!` / `apply_kraus!`）、测量 / 后选择 / 偏迹、矩阵期望值、
   自旋算符代数（`SpinOpTerm` / `SpinOpSum`，支持任意单比特算子的
   高效作用）；
 * **接口扩展**（`ext/VQCQuantumCircuitsExt.jl`，`using QuantumCircuits`

@@ -358,61 +358,25 @@ end
 # ── multi-factor expect：多因子局域算符链的期望值 ─────────────────────────────
 
 """
-    multi_expect_kernel(v::AbstractVector, factors) -> scalar
+    multi_expect_kernel(v::AbstractVector, factors, ws::AbstractVector) -> scalar
 
-计算多因子局域算符链的期望值 `⟨v|U₁U₂…Uₖ|v⟩`——**不复制量子态、
-无 `2ⁿ` 中间数组、不构造多因子大矩阵**。`factors` 为 `(key, U)`
-元组向量（`key` LSB-first、0-based），按矩阵积从右到左排列；
-各因子的比特可以不同。
+计算多因子局域算符链的期望值 `⟨v|U₁U₂…Uₖ|v⟩`。`factors` 为
+`(key, U)` 元组向量（`key` LSB-first、0-based），**按矩阵积从右到左
+排列**（先作用最右因子）。
 
-实现：取所有因子比特的并集做**联合分块**（块大小 `2^K`，`K` 为
-并集位数），逐块 gather 后在块缓冲内从右到左逐因子就地作用，最后
-`dot` 累加。函数内唯一的大对象是一个 `2^K` 块缓冲——与系统大小
-`n` 无关，只随因子并集位数指数增长（典型 Pauli 串 `K ≤ 6`）。
+最右因子 out-of-place 写入工作缓冲 `ws`，其余因子就地作用，最后
+`dot(v, ws)`。除 `ws` 外无其它中间内存，且**与因子数无关**。
+`ws` 与 `v` 等长、内容可被覆盖，且不得与 `v` 共享存储。
 """
-function multi_expect_kernel(v::AbstractVector{T}, factors) where {T}
-    isempty(factors) && throw(ArgumentError("empty factor list"))
-    # 联合比特并集（升序）
-    allq = Int[]
-    for (key, _) in factors, q in key
-        q in allq || push!(allq, q)
+function multi_expect_kernel(v::AbstractVector, factors, ws::AbstractVector)
+    length(ws) == length(v) || throw(DimensionMismatch("state length mismatch"))
+    ws === v && throw(ArgumentError("workspace must not alias the state"))
+    key, U = factors[1]
+    lmul_kernel!(ws, v, key, U)            # 最右因子 out-of-place
+    for i in 2:length(factors)             # 其余因子就地作用
+        apply_kernel!(ws, factors[i]...)
     end
-    sort!(allq)
-    K = length(allq)
-    nblocks = length(v) >> K
-    nblocks >= 1 || throw(ArgumentError("factor qubit union too large for system size"))
-    OT = T
-    for (_, U) in factors
-        OT = promote_type(OT, eltype(U))
-    end
-    skey = NTuple{K,Int}(allq)
-    L = 1 << K
-    # 联合块内局域地址：把局域索引 j 的位散射到 allq 位（base 的 allq 位
-    # 为 0，相加无进位）。预计算一次。
-    addr = [1 + _scatter(j, skey) for j in 0:L-1]
-    return _run_range_sum(OT, nblocks) do a, b
-        buf = Vector{OT}(undef, L)         # 每线程独立，避免竞争
-        acc_ = zero(OT)
-        @inbounds for rest in a:b
-            base = _bit_insert_zeros(rest, skey)
-            # gather 联合块
-            for i in 1:L
-                buf[i] = v[base + addr[i]]
-            end
-            # 从右到左逐因子在块内就地作用
-            for (fkey, U) in factors
-                subkey = ntuple(i -> searchsortedfirst(allq, fkey[i]) - 1, length(fkey))
-                apply_kernel!(buf, subkey, U)
-            end
-            # ⟨v_block | result_block⟩
-            s = zero(OT)
-            for i in 1:L
-                s += conj(v[base + addr[i]]) * buf[i]
-            end
-            acc_ += s
-        end
-        return acc_
-    end
+    return dot(v, ws)
 end
 
 """

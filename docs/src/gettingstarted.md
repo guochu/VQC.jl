@@ -87,8 +87,8 @@ s1 ≈ s2
 
 ## 直接作用局域矩阵与 Kraus 算子
 
-绕开 IR，直接把局域矩阵 / Kraus 算子集作用到态上（核心层原语，
-`positions[1]` 为矩阵最高位）：
+绕开 IR，直接把局域矩阵 / Kraus 算子集**就地**作用到态上
+（核心层原语 `apply!` / `apply_kraus!`，`positions[1]` 为矩阵最高位）：
 
 ```@docs
 apply_kraus!
@@ -99,7 +99,7 @@ reset_qubit_zero!
 using VQC, LinearAlgebra
 
 ψ = rand_state(3)
-apply(ψ, Matrix{Float64}(I, 2, 2), [1])   # 单位阵作用在 qubit 1
+apply!(ψ, Matrix{Float64}(I, 2, 2), [1])   # 单位阵作用在 qubit 1（就地）
 ρ = apply_kraus!(DensityMatrix(ψ), [[1.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 1.0]], [1])
 ```
 

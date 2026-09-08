@@ -28,17 +28,17 @@ function _check_positions(positions::Vector{Int}, n::Int)
 end
 
 """
-    apply(state, m::AbstractMatrix, positions::Vector{Int}) -> state
+    apply!(state, m::AbstractMatrix, positions::Vector{Int}) -> state
 
 把 `length(positions)` 比特局域矩阵 `m`（`positions[1]` = 矩阵最高位，
-1-based 比特位置）作用到态上：
+1-based 比特位置）**就地**作用到态上：
 
 * `StateVector`：`ψ ← m ψ`；
 * `DensityMatrix`：`ρ ← m ρ m†`。
 
 实数态遇复矩阵自动提升为 `ComplexF64`（返回值可能是新对象）。
 """
-function apply(s::StateVector, m::AbstractMatrix, positions::Vector{Int})
+function apply!(s::StateVector, m::AbstractMatrix, positions::Vector{Int})
     _check_positions(positions, _nqubits(s))
     size(m, 1) == size(m, 2) == 1 << length(positions) ||
         throw(ArgumentError("matrix size $(size(m)) does not match $(length(positions)) qubit(s)"))
@@ -49,7 +49,7 @@ function apply(s::StateVector, m::AbstractMatrix, positions::Vector{Int})
     return s
 end
 
-function apply(s::DensityMatrix, m::AbstractMatrix, positions::Vector{Int})
+function apply!(s::DensityMatrix, m::AbstractMatrix, positions::Vector{Int})
     n = _nqubits(s)
     _check_positions(positions, n)
     size(m, 1) == size(m, 2) == 1 << length(positions) ||

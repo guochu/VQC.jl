@@ -401,7 +401,8 @@ function expectation(t::SpinOpTerm, s::StateVector)
         key, m = factors[1]
         return t.coeff * expect_kernel(storage(s), key, m)
     end
-    return t.coeff * multi_expect_kernel(storage(s), factors)
+    ws = similar(storage(s), promote_type(eltype(s), ComplexF64))
+    return t.coeff * multi_expect_kernel(storage(s), factors, ws)
 end
 
 function expectation(s::SpinOpSum, st::StateVector)

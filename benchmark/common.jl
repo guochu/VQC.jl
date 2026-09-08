@@ -49,7 +49,7 @@ end
 function run_vqc(v0::Vector{T}, gates, n::Int) where {T}
     sv = StateVector(v0, n)
     for (U, locs) in gates
-        apply(sv, U, locs)
+        apply!(sv, U, locs)
     end
     return v0
 end
