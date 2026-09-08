@@ -100,6 +100,7 @@ distance(x::DensityMatrix, y::DensityMatrix) = _distance(x, y)
 密度矩阵的特征值（按降序），可作为谱分解 / 纠缠度量的输入。
 """
 schmidt_numbers(x::DensityMatrix) = eigvals(Hermitian(storage(x)))
+entropy(x::DensityMatrix) = entropy(real.(schmidt_numbers(x)))
 renyi_entropy(x::DensityMatrix; kwargs...) = renyi_entropy(real.(schmidt_numbers(x)); kwargs...)
 
 """

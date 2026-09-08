@@ -7,6 +7,7 @@ makedocs(
 	authors = "Guo Chu",
 	pages=["Home" => "index.md",
 	"gettingstarted.md",
+	"coreapi.md",
 	"variational.md",
 	"ham.md",
 	"qctrl.md"],

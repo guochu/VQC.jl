@@ -225,5 +225,19 @@ end
 纯态间为 `|⟨x|y⟩|²`；其他组合见 `DensityMatrix` 方法。
 """
 fidelity(x::StateVector, y::StateVector) = abs2(dot(x, y))
-distance2(x::StateVector, y::StateVector) = _distance2(x, y)
+
+"""
+    distance(x, y) -> Real
+
+两量子态的距离：纯态间为 `√(1 - fidelity)`，
+密度矩阵间为 Hilbert-Schmidt 距离。
+"""
 distance(x::StateVector, y::StateVector) = _distance(x, y)
+
+"""
+    distance2(x, y) -> Real
+
+两量子态的平方距离：纯态间为 `1 - fidelity`，
+密度矩阵间为 Hilbert-Schmidt 平方距离。
+"""
+distance2(x::StateVector, y::StateVector) = _distance2(x, y)

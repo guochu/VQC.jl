@@ -50,10 +50,10 @@ export StateVector, DensityMatrix, storage,
 export fidelity, distance, distance2, schmidt_numbers, entropy, renyi_entropy
 
 # ── 通用态原语 ──
-export apply, apply_kraus!, reset_qubit_zero!
+export apply_kraus!, reset_qubit_zero!
 
-# ── 自旋算符代数 ──
-export SpinOpTerm, SpinOpSum
+# ── 自旋算符代数（非就地 apply 见 hamiltonian.jl）──
+export SpinOpTerm, SpinOpSum, apply
 
 # ── 测量 ──
 export probabilities, measure!, sample, post_select, post_select!
@@ -71,8 +71,9 @@ include("hamiltonian.jl")
 
 # ── QuantumCircuits 接口存根 ─────────────────────────────────────────────────
 #
-# 核心层只声明泛型函数；方法由扩展 `VQCQuantumCircuitsExt`
-# （`using QuantumCircuits` 时自动加载）提供。
+# `simulate` / `simulate!` 在核心层只声明泛型函数存根，方法由扩展
+# `VQCQuantumCircuitsExt`（`using QuantumCircuits` 时自动加载）提供；
+# `apply!` 有两类方法：局域矩阵原语（coreops.jl）与 IR 指令适配（扩展）。
 
 function simulate end
 function simulate! end
