@@ -96,13 +96,13 @@ end
 # ── 态上直接作用矩阵的内部工具 ────────────────────────────────────────────────
 
 function _apply_sv_matrix!(s::StateVector, qs::Vector{Int}, m::AbstractMatrix)
-    apply_kernel!(storage(s), _lsb_key(qs), m)
+    apply_kernel!(storage(s), _lsb_key(Tuple(qs)), m)
     return s
 end
 
 function _apply_dm_matrix!(s::DensityMatrix, qs::Vector{Int}, m::AbstractMatrix)
     n = nqubits(s)
-    key = _lsb_key(qs)
+    key = _lsb_key(Tuple(qs))
     apply_kernel!(s.data, key, m)
     apply_kernel!(s.data, ntuple(i -> key[i] + n, Val(length(qs))), conj(m))
     return s
@@ -179,7 +179,7 @@ end
 # DM 梯度公式（全局矩阵形式，U 为门矩阵、dU = ∂U）：
 #   dL/dθ = Re tr(dU·ρ_in U†Δ†) + Re tr(dU·conj(Δ†U ρ_in))。
 _grad_contrib(y::StateVector, U, dU, Δ::StateVector, qs::Vector{Int}) =
-    real(expect_kernel(storage(Δ), storage(y), _lsb_key(qs), dU))
+    real(expect_kernel(storage(Δ), storage(y), _lsb_key(Tuple(qs)), dU))
 
 function _grad_contrib(y::DensityMatrix, U, dU, Δ::DensityMatrix, qs::Vector{Int})
     n = nqubits(y)
@@ -234,7 +234,7 @@ function _back_channelop!(Δ::DensityMatrix, op::ChannelOp)
     qs = qubits(op)
     all(q -> 1 <= q <= n, qs) || throw(ArgumentError("channel qubit out of range"))
     Nq = length(qs)
-    key = _lsb_key(qs)
+    key = _lsb_key(Tuple(qs))
     key2 = ntuple(i -> (i <= Nq ? key[i] : key[i-Nq] + n), Val(2Nq))
     # Δ ← Σₖ Kₖ† Δ Kₖ（伴随映射：S† 分块作用于 vec(ρ)）
     apply_kernel!(Δ.data, key2, adjoint(_supermat(op.channel)))
@@ -367,10 +367,10 @@ function _expect_sv_adj(z, s::StateVector, qs::Vector{Int}, M::AbstractMatrix)
     g = zero(storage(s))
     tmp = similar(g)
     copyto!(tmp, storage(s))
-    apply_kernel!(tmp, _lsb_key(qs), M)
+    apply_kernel!(tmp, _lsb_key(Tuple(qs)), M)
     @. g += conj(z) * tmp
     copyto!(tmp, storage(s))
-    apply_kernel!(tmp, _lsb_key(qs), adjoint(M))
+    apply_kernel!(tmp, _lsb_key(Tuple(qs)), adjoint(M))
     @. g += z * tmp
     return StateVector(g, nqubits(s))
 end

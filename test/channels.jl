@@ -66,11 +66,11 @@
     # 实 Kraus + 实态 → 保持实类型
     ks_re = [Matrix{Float64}(I, 2, 2)]               # 单位算子
     ρre = DensityMatrix(Float64[1.0 0.0; 0.0 0.0], 1)
-    out_k = apply_kraus!(ρre, ks_re, [1])
+    out_k = apply_kraus!(ρre, ks_re, (1,))
     @test eltype(out_k) == Float64
     @test out_k ≈ DensityMatrix(Float64[1.0 0.0; 0.0 0.0], 1)
     # 复 Kraus + 实态 → 升复
     ρre2 = DensityMatrix(Float64[1.0 0.0; 0.0 0.0], 1)
-    out_k2 = apply_kraus!(ρre2, [Matrix{ComplexF64}(I, 2, 2)], [1])
+    out_k2 = apply_kraus!(ρre2, [Matrix{ComplexF64}(I, 2, 2)], (1,))
     @test eltype(out_k2) <: Complex
 end

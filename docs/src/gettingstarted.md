@@ -99,8 +99,8 @@ reset_qubit_zero!
 using VQC, LinearAlgebra
 
 ψ = rand_state(3)
-apply!(ψ, Matrix{Float64}(I, 2, 2), [1])   # 单位阵作用在 qubit 1（就地）
-ρ = apply_kraus!(DensityMatrix(ψ), [[1.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 1.0]], [1])
+apply!(ψ, Matrix{Float64}(I, 2, 2), (1,))   # 单位阵作用在 qubit 1（就地）
+ρ = apply_kraus!(DensityMatrix(ψ), [[1.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 1.0]], (1,))
 ```
 
 ## 测量与后选择

@@ -7,12 +7,14 @@
 # 约定：
 #   * 比特位置 1-based、小端序（qubit 1 = 最低有效位，与 QuantumCircuits 一致）；
 #   * `positions[1]` 为矩阵最高位（与 QuantumCircuits 的门矩阵约定一致）；
+#   * `positions` 用**已知长度的元组**（`NTuple`）传入——长度在编译期确定，
+#     kernel 直接静态特化，避免 Vector → Tuple 的运行期转换；
 #   * 内部位运算（kernel key 等）仍为 0-based。
 
 """
 位置元组（MSB-first，1-based）→ kernel key（LSB-first，0-based 位号）。内部工具。
 """
-_lsb_key(positions::Vector{Int}) = ntuple(i -> positions[length(positions)+1-i] - 1, Val(length(positions)))
+_lsb_key(positions::NTuple{N,Int}) where {N} = ntuple(i -> positions[N+1-i] - 1, Val(N))
 
 _ensure_complex(s::StateVector) =
     eltype(s) <: Complex ? s :
@@ -21,27 +23,27 @@ _ensure_complex(s::DensityMatrix) =
     eltype(s) <: Complex ? s :
     DensityMatrix(convert(Vector{complex(float(eltype(s)))}, s.data), _nqubits(s))
 
-function _check_positions(positions::Vector{Int}, n::Int)
-    length(unique(positions)) == length(positions) || throw(ArgumentError("duplicate qubit positions"))
+function _check_positions(positions::NTuple{N,Int}, n::Int) where {N}
+    allunique(positions) || throw(ArgumentError("duplicate qubit positions"))
     all(q -> 1 <= q <= n, positions) || throw(ArgumentError("qubit position out of range [1, $n]"))
     return positions
 end
 
 """
-    apply!(state, m::AbstractMatrix, positions::Vector{Int}) -> state
+    apply!(state, m::AbstractMatrix, positions::NTuple{N,Int}) -> state
 
-把 `length(positions)` 比特局域矩阵 `m`（`positions[1]` = 矩阵最高位，
-1-based 比特位置）**就地**作用到态上：
+把 `N` 比特局域矩阵 `m`（`positions[1]` = 矩阵最高位，1-based 比特位置）
+**就地**作用到态上：
 
 * `StateVector`：`ψ ← m ψ`；
 * `DensityMatrix`：`ρ ← m ρ m†`。
 
 实数态遇复矩阵自动提升为 `ComplexF64`（返回值可能是新对象）。
 """
-function apply!(s::StateVector, m::AbstractMatrix, positions::Vector{Int})
+function apply!(s::StateVector, m::AbstractMatrix, positions::NTuple{N,Int}) where {N}
     _check_positions(positions, _nqubits(s))
-    size(m, 1) == size(m, 2) == 1 << length(positions) ||
-        throw(ArgumentError("matrix size $(size(m)) does not match $(length(positions)) qubit(s)"))
+    size(m, 1) == size(m, 2) == 1 << N ||
+        throw(ArgumentError("matrix size $(size(m)) does not match $N qubit(s)"))
     if eltype(s) <: Real && !(eltype(m) <: Real)
         s = _ensure_complex(s)
     end
@@ -49,22 +51,22 @@ function apply!(s::StateVector, m::AbstractMatrix, positions::Vector{Int})
     return s
 end
 
-function apply!(s::DensityMatrix, m::AbstractMatrix, positions::Vector{Int})
+function apply!(s::DensityMatrix, m::AbstractMatrix, positions::NTuple{N,Int}) where {N}
     n = _nqubits(s)
     _check_positions(positions, n)
-    size(m, 1) == size(m, 2) == 1 << length(positions) ||
-        throw(ArgumentError("matrix size $(size(m)) does not match $(length(positions)) qubit(s)"))
+    size(m, 1) == size(m, 2) == 1 << N ||
+        throw(ArgumentError("matrix size $(size(m)) does not match $N qubit(s)"))
     if eltype(s) <: Real && !(eltype(m) <: Real)
         s = _ensure_complex(s)
     end
     key = _lsb_key(positions)
     apply_kernel!(s.data, key, m)                                        # ρ ← m ρ（行索引）
-    apply_kernel!(s.data, ntuple(i -> key[i] + n, Val(length(positions))), conj(m))  # ρ ← ρ m†（列索引）
+    apply_kernel!(s.data, ntuple(i -> key[i] + n, Val(N)), conj(m))  # ρ ← ρ m†（列索引）
     return s
 end
 
 """
-    apply_kraus!(state, ks, positions) -> state
+    apply_kraus!(state, ks, positions::NTuple{N,Int}) -> state
 
 把 Kraus 算子集 `ks`（向量 `k` 满足 `Σₖ kₖ† kₖ = I`）作用到态上：
 
@@ -78,20 +80,20 @@ end
 算子矩阵转换到态的 `eltype` 后作用；实数态遇复算子自动提升为
 复数版本（返回值可能是新对象）。
 """
-function apply_kraus!(s::StateVector, ks, positions::Vector{Int})
+function apply_kraus!(s::StateVector, ks, positions::NTuple{N,Int}) where {N}
     if eltype(s) <: Real && any(K -> !(eltype(K) <: Real), ks)
         s = _ensure_complex(s)
     end
     return apply_kraus!(DensityMatrix(s), ks, positions)
 end
 
-function apply_kraus!(s::DensityMatrix, ks, positions::Vector{Int})
+function apply_kraus!(s::DensityMatrix, ks, positions::NTuple{N,Int}) where {N}
     n = _nqubits(s)
     _check_positions(positions, n)
     isempty(ks) && return s
     D = size(ks[1], 1)
-    D == 1 << length(positions) ||
-        throw(ArgumentError("operator dimension $(D) does not match $(length(positions)) qubit(s)"))
+    D == 1 << N ||
+        throw(ArgumentError("operator dimension $(D) does not match $N qubit(s)"))
     if eltype(s) <: Real && any(K -> !(eltype(K) <: Real), ks)
         s = _ensure_complex(s)
     end

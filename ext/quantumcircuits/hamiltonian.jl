@@ -67,9 +67,9 @@ end
 把酉门 `op` 当作可观测量：`⟨ψ|U|ψ⟩` 或 `tr(ρ U)`。
 """
 function expectation(op::GateOp, s::StateVector)
-    return expect_kernel(storage(s), _lsb_key(qubits(op)), mat(op))
+    return expect_kernel(storage(s), _lsb_key(Tuple(qubits(op))), mat(op))
 end
 
 function expectation(op::GateOp, s::DensityMatrix)
-    return dm_expect_kernel(s.data, 1 << _nqubits(s), _lsb_key(qubits(op)), mat(op))
+    return dm_expect_kernel(s.data, 1 << _nqubits(s), _lsb_key(Tuple(qubits(op))), mat(op))
 end

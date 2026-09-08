@@ -23,14 +23,14 @@ BATCHSIZES = (8, 16, 32, 64)
 
 "门位置组合：连续低 / 中 / 高 + 均匀分散（均已排序去重）。"
 function locsets(n::Int, nb::Int)
-    low = collect(1:nb)
-    high = collect(n-nb+1:n)
+    low = Tuple(1:nb)
+    high = Tuple(n-nb+1:n)
     mid0 = (n - nb) ÷ 2 + 1
-    mid = collect(mid0:mid0+nb-1)
+    mid = Tuple(mid0:mid0+nb-1)
     spread = [round(Int, 1 + (n - 1) * i / (nb - 1)) for i in 0:nb-1]
-    sets = Tuple{String,Vector{Int}}[("low", low), ("mid", mid), ("high", high)]
+    sets = Tuple{String,Tuple{Vararg{Int}}}[("low", low), ("mid", mid), ("high", high)]
     sp = sort(unique(spread))
-    sp == low || push!(sets, ("spread", sp))
+    sp == collect(low) || push!(sets, ("spread", Tuple(sp)))
     return sets
 end
 
@@ -65,7 +65,7 @@ open(path, "w") do io
                         if yao_ok
                             reg = ArrayReg(randn(T, 1 << n))
                             t_yao = bench_min(() -> Yao.apply!(reg,
-                                put(n, (sort(locs)...,) => matblock(U_yao))))
+                                put(n, (sort(collect(locs))...,) => matblock(U_yao))))
                             println(io, "$n,$T,$nb,$loctag,$K,$(Threads.nthreads()),$(t_yao * 1e3),Yao")
                             @printf("  %d-qubit %-6s  Yao   %10.3f ms\n", nb, loctag, t_yao * 1e3)
                         end

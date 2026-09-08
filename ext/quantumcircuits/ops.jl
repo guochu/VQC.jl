@@ -25,11 +25,11 @@ end
 中的符号参数。
 """
 function apply!(s::StateVector, op::GateOp, table::Union{Nothing,AbstractDict}=nothing)
-    return apply!(s, mat(op, table), qubits(op))
+    return apply!(s, mat(op, table), Tuple(qubits(op)))
 end
 
 function apply!(s::DensityMatrix, op::GateOp, table::Union{Nothing,AbstractDict}=nothing)
-    return apply!(s, mat(op, table), qubits(op))
+    return apply!(s, mat(op, table), Tuple(qubits(op)))
 end
 
 # ── ChannelOp ────────────────────────────────────────────────────────────────
@@ -41,10 +41,10 @@ end
 `DensityMatrix`（返回值随之改变类型）。
 """
 apply!(s::StateVector, op::ChannelOp, table::Union{Nothing,AbstractDict}=nothing) =
-    apply_kraus!(s, kraus(op.channel), qubits(op))
+    apply_kraus!(s, kraus(op.channel), Tuple(qubits(op)))
 
 apply!(s::DensityMatrix, op::ChannelOp, table::Union{Nothing,AbstractDict}=nothing) =
-    apply_kraus!(s, kraus(op.channel), qubits(op))
+    apply_kraus!(s, kraus(op.channel), Tuple(qubits(op)))
 
 # ── ReinitOp / BarrierOp / MeasOp ────────────────────────────────────────────
 

@@ -33,13 +33,13 @@ end
 
 "随机线路：`depth` 层随机单 / 两比特门（两比特为连续对）。"
 function random_circuit(rng::AbstractRNG, n::Int, T::Type; depth::Int = clamp(2n, 4, 40))
-    gates = Vector{Tuple{Matrix,Vector{Int}}}()
+    gates = Vector{Tuple{Matrix,Tuple{Vararg{Int}}}}()
     for _ in 1:depth
         if n == 1 || rand(rng, Bool)
-            push!(gates, (rand_unitary(T, 2), [rand(rng, 1:n)]))
+            push!(gates, (rand_unitary(T, 2), (rand(rng, 1:n),)))
         else
             k = rand(rng, 1:n-1)
-            push!(gates, (rand_unitary(T, 4), [k, k + 1]))
+            push!(gates, (rand_unitary(T, 4), (k, k + 1)))
         end
     end
     return gates
