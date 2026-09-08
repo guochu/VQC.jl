@@ -34,6 +34,18 @@
     out = simulate(cm, zero_state(1))
     @test probabilities(out)[1] ≈ 1 atol = 1e-12   # 测到 1 会被 X 翻回 |0⟩
 
+    # 单比特条件（index ≥ 2）：测量写 c2[2]，条件 c2[2]==1 翻转 qubit 2
+    cm2 = Circuit(2; cregs = [QuantumCircuits.CReg(:c2, 2)])
+    push!(cm2, H(1))
+    push!(cm2, measure(1, cm2.cregs[1][2]))
+    QuantumCircuits.if_then(cm2, cm2.cregs[1][2] == 1, Circuit([X(2)]))
+    p1 = 0.0
+    for _ in 1:200
+        out2 = simulate(cm2, zero_state(2))
+        p1 += probabilities(out2, [2])[2]
+    end
+    @test 0.4 < p1 / 200 < 0.6   # 条件按位触发（回归：索引不得丢失）
+
     # ── BlockOp（重复 + 映射）──
     body = Circuit([X(1)]; n=1)
     cb = Circuit(4)

@@ -30,6 +30,9 @@ end
 
 function _eval_cond(cond::Cond, store::ClassicalStore)
     v = _reg_value(store, cond.reg)
+    if cond.bit !== nothing
+        v = (v >> (cond.bit - 1)) & 1
+    end
     op = cond.op
     return op === :(==) ? v == cond.value :
            op === :(≠) ? v != cond.value :
