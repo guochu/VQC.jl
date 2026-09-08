@@ -13,12 +13,13 @@ function probabilities(s::DensityMatrix)
 end
 
 """
-    probabilities(s, qubits::AbstractVector{Int}) -> Vector{Float64}
+    marginal_probabilities(s, qubits::AbstractVector{Int}) -> Vector{Float64}
+    marginal_probabilities(s, q::Int) -> Vector{Float64}
 
 指定比特子集的边缘概率分布：长度 `2^k`（`k = length(qubits)`），
 输出的第 `j` 位（LSB-first）对应 `qubits[j]` 的取值。
 """
-function probabilities(s::Union{StateVector,DensityMatrix}, qs::AbstractVector{Int})
+function marginal_probabilities(s::Union{StateVector,DensityMatrix}, qs::AbstractVector{Int})
     n = _nqubits(s)
     k = length(qs)
     all(q -> 1 <= q <= n, qs) || throw(ArgumentError("qubit index out of range [1, $n]"))
@@ -36,34 +37,44 @@ function probabilities(s::Union{StateVector,DensityMatrix}, qs::AbstractVector{I
     return out
 end
 
-"单比特边缘概率 `[P(0), P(1)]`。"
-probabilities(s::Union{StateVector,DensityMatrix}, q::Int) = probabilities(s, [q])
+marginal_probabilities(s::Union{StateVector,DensityMatrix}, q::Int) =
+    marginal_probabilities(s, [q])
 
 """
-    measure!(s::Union{StateVector,DensityMatrix}, q::Integer) -> (outcome, p)
+    measure!(s) -> Int
+    measure!(s, q::Integer) -> Int
+    measure!(s, qs::AbstractVector{Int}) -> Vector{Int}
 
-测量 qubit `q`（1-based）并就地坍缩，返回 `(outcome, p)`：测量结果
-（0/1）及其概率。
+测量并**就地坍缩**：测量后态以概率 1 处于坍缩后的状态
+（非 `outcome` 子空间的振幅被严格清零并重新归一化）。
+
+* `measure!(s)`：测量**全部**比特，返回所有结果按小端序组成的
+  整数（qubit 1 = 最低位）；
+* `measure!(s, q)`：测量 qubit `q`，返回结果（0/1）；
+* `measure!(s, qs)`：依次测量一组比特，返回结果的向量。
 """
 function measure!(s::Union{StateVector,DensityMatrix}, q::Integer)
     q = Int(q)
     n = _nqubits(s)
     1 <= q <= n || throw(ArgumentError("qubit index $q out of range [1, $n]"))
-    p0, p1 = probabilities(s, q)
+    p0, p1 = marginal_probabilities(s, q)
     outcome = rand() * (p0 + p1) < p0 ? 0 : 1
     p = outcome == 0 ? p0 : p1
     p > 0 || throw(ArgumentError("cannot collapse onto zero-probability outcome"))
     _project!(s, q - 1, outcome, p)
-    return outcome, p
+    return outcome
 end
 
-"""
-    measure!(s, qs::AbstractVector{Int}) -> Vector{Tuple{Int,Float64}}
-
-依次测量一组比特（就地坍缩），返回 `(outcome, p)` 元组的向量。
-"""
 function measure!(s::Union{StateVector,DensityMatrix}, qs::AbstractVector{Int})
-    return Tuple{Int,Float64}[measure!(s, q) for q in qs]
+    return Int[measure!(s, q) for q in qs]
+end
+
+function measure!(s::Union{StateVector,DensityMatrix})
+    outcome = 0
+    for q in 1:_nqubits(s)
+        outcome |= measure!(s, q) << (q - 1)
+    end
+    return outcome
 end
 
 """
@@ -75,7 +86,7 @@ end
 """
 function sample(s::Union{StateVector,DensityMatrix}, qs::AbstractVector{Int}, shots::Int)
     shots >= 0 || throw(ArgumentError("shots must be non-negative"))
-    ps = probabilities(s, qs)
+    ps = marginal_probabilities(s, qs)
     return _sample_counts(ps, shots)
 end
 

@@ -91,6 +91,7 @@ apply_kraus!(ρ, [[1.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 1.0]], (1,))   # 退相位
 
 ```@docs
 probabilities
+marginal_probabilities
 measure!
 sample
 post_select!
@@ -101,9 +102,10 @@ post_select
 using VQC
 
 ψ = rand_state(3)
-probabilities(ψ, [2, 1])           # qubit 2、1 的联合分布（第 j 位对应 qubits[j]）
-outcome, p = measure!(ψ, 3)        # 测量 qubit 3 并坍缩（就地）
+marg = marginal_probabilities(ψ, [2, 1])   # qubit 2、1 的联合分布（第 j 位对应 qubits[j]）
+outcome = measure!(ψ, 3)           # 测量 qubit 3 并坍缩（就地），返回 0/1
 dict = sample(ψ, 100)              # 计算基采样：基矢索引 → 次数
+o_all = measure!(ψ)                # 测量全部比特，返回小端序整数
 nothing
 ```
 

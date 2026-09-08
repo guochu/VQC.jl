@@ -20,8 +20,9 @@ push!(c, CX(1, 2))
 ψ = simulate(c, zero_state(2))
 println("probabilities = ", probabilities(ψ))
 
-outcome, p = measure!(ψ, 1)
-println("outcome = $outcome, probability = $p")
+p = marginal_probabilities(ψ, 1)
+outcome = measure!(ψ, 1)
+println("outcome = $outcome, probability = $(p[outcome + 1])")
 ```
 
 ## 变分线路

@@ -42,7 +42,7 @@
     p1 = 0.0
     for _ in 1:200
         out2 = simulate(cm2, zero_state(2))
-        p1 += probabilities(out2, [2])[2]
+        p1 += marginal_probabilities(out2, [2])[2]
     end
     @test 0.4 < p1 / 200 < 0.6   # 条件按位触发（回归：索引不得丢失）
 

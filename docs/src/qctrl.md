@@ -62,8 +62,8 @@ push!(c, CX(1, 2))
 counts = Dict{Int,Int}()
 for _ in 1:200
     ψr = simulate(c, zero_state(2))
-    b2, _ = measure!(ψr, 2)
-    b1, _ = measure!(ψr, 1)
+    b2 = measure!(ψr, 2)
+    b1 = measure!(ψr, 1)
     key = b2 << 1 | b1                     # (q2, q1) → 整数
     counts[key] = get(counts, key, 0) + 1
 end

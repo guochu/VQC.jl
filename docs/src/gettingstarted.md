@@ -145,8 +145,8 @@ push!(c, H(1))
 push!(c, CX(1, 2))
 ψ = simulate(c, zero_state(2))
 
-probabilities(ψ, 1)              # 单比特分布
-outcome, p = measure!(ψ, 1)      # 测量并坍缩
+marginal_probabilities(ψ, 1)     # 单比特边缘分布
+outcome = measure!(ψ, 1)         # 测量并坍缩，返回 0/1
 samples = sample(ψ, 16)          # 计算基采样
 ```
 

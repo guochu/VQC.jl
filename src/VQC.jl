@@ -56,7 +56,8 @@ export apply_kraus!, reset_qubit_zero!
 export SpinOpTerm, SpinOpSum, apply
 
 # ── 测量 ──
-export probabilities, measure!, sample, post_select, post_select!
+export probabilities, marginal_probabilities, measure!,
+       sample, post_select, post_select!
 
 # ── 可观测量 / 约化 ──
 export expectation, partial_tr

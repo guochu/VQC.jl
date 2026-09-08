@@ -11,7 +11,7 @@ function post_select!(s::Union{StateVector,DensityMatrix}, q::Integer, val::Inte
     n = _nqubits(s)
     1 <= q <= n || throw(ArgumentError("qubit index $q out of range [1, $n]"))
     val in (0, 1) || throw(ArgumentError("post-selection value must be 0 or 1"))
-    p0, p1 = probabilities(s, q)
+    p0, p1 = marginal_probabilities(s, q)
     p = val == 0 ? p0 : p1
     p > 0 || throw(ArgumentError("post-selection probability is zero"))
     _project!(s, q - 1, val, p)

@@ -111,3 +111,69 @@ expectation(ham, ρ)                          # tr(ρH)
 厄米算符的期望值为实数；`LinearAlgebra.ishermitian` 可用于检验。
 与 QuantumCircuits 的 Pauli 代数（`PauliTerm` / `PauliSum`）互操作时，
 `expectation` 同样由 VQC 后端实现。
+
+## 示例：量子相位估计（QPE）
+
+QPE 从 oracle `U = PHASE(θ) = diag(1, e^{iθ})` 中**精确求出旋转角 θ**：
+`U` 作用在特征态 `|1⟩` 上产生相位 `e^{iθ}`，用 `M = 4` 个寻址比特
+（受控 `U^{2^(j-1)}`）把相位写入叠加态，再经逆 QFT 读出
+`k = 2^M·θ/(2π)`。取 `θ = π/4`，应有 `k = 2` 且测量**以概率 1** 得到它：
+
+```@example qpe
+using QuantumCircuits, VQC
+
+"2-qubit 受控相位门 CP(φ) = diag(1, 1, 1, e^{iφ})"
+cp_gate(φ) = QuantumCircuits.usergate(:cp,
+    [1.0 0 0 0; 0 1.0 0 0; 0 0 1.0 0; 0 0 0 cis(φ)])
+
+function inverse_qft!(c, qs::NTuple{M,Int}) where {M}
+    for j in M:-1:1
+        push!(c, H(qs[j]))
+        for k in 1:j-1
+            push!(c, cp_gate(-π / 2^(j - k))(qs[k], qs[j]))
+        end
+    end
+    return c
+end
+
+M = 4
+c = Circuit(M + 1)
+addr = ntuple(j -> j, M)              # 寻址比特 (1,…,4)
+feat = M + 1                          # 特征比特
+
+push!(c, X(feat))                     # oracle 的本征态 |1⟩
+for j in addr
+    push!(c, H(j))                    # 寻址比特叠加
+end
+for j in 1:M
+    push!(c, cp_gate(2^(j - 1) * π / 4)(addr[j], feat))   # 受控 U^{2^{j-1}}
+end
+inverse_qft!(c, addr)
+
+c                                     # 渲染完整线路
+```
+
+```@example qpe
+θ̂s = Int[]
+for _ in 1:200
+    ψ = simulate(c, zero_state(M + 1))
+    y = measure!(ψ, collect(1:M))
+    # iQFT 输出为位反序：k 按 MSB-first 组装
+    push!(θ̂s, sum((y[j] << (M - j)) for j in 1:M))
+end
+counts = Dict{Int,Int}()
+for k in θ̂s
+    counts[k] = get(counts, k, 0) + 1
+end
+counts                                # 200 次全部测得 k = 2
+```
+
+```@example qpe
+θ̂ = 2π * θ̂s[1] / 2^M                 # θ̂ = 2π·k/2^M
+println("θ̂ = ", θ̂, "，与真值 θ = π/4 = ", π / 4)
+isapprox(θ̂, π / 4; atol = 1e-12)
+```
+
+多比特寻址下 QPE 的精度为 `2π/2^M`：增加寻址比特数即可任意提高
+θ 的估计精度。`SpinOpTerm` / `SpinOpSum` 的作用（本页的 `apply`）
+可直接用作 Lanczos 等本征值求解器中的 `U` 或 `H`。
