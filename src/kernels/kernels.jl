@@ -161,6 +161,200 @@ function _dm_apply_single_range!(rho::AbstractVector{T}, d::Int, m::SMatrix{D2,D
     return nothing
 end
 
+# ── out-of-place：局域算子的 mul! / axpy! 核（y = U·x / y += α·U·x） ──────────
+#
+# 供 SpinOpTerm / SpinOpSum 的 LinearAlgebra.mul! / axpy! 重载使用：
+# 乘积项逐因子链式作用时无需分配中间振幅数组（见 hamiltonian.jl）。
+
+"""
+    lmul_kernel!(y::AbstractVector, x::AbstractVector, key, U) -> y
+
+`y = U·x`（`N` 比特局域块逐块 gather，`key` LSB-first、0-based）。
+`y` 与 `x` 不得共享存储。
+"""
+function lmul_kernel!(y::AbstractVector, x::AbstractVector, key::NTuple{N,Int}, U::AbstractMatrix) where {N}
+    D = 1 << N
+    (size(U, 1) == size(U, 2) == D) ||
+        throw(ArgumentError("matrix size $(size(U)) does not match $N qubit(s)"))
+    length(y) == length(x) || throw(DimensionMismatch("state length mismatch"))
+    OT = promote_type(eltype(y), eltype(x))
+    nred = length(y) >> N
+    skey = _sorted_key(key)
+    offs = _offsets(key)
+    Uc = SMatrix{D,D,OT}(U)
+    if offs == ntuple(j -> j - 1, Val(D))
+        K = min(_KERNEL_BATCH[], D)
+        nchunk, ntail = divrem(nred, K)
+        nchunk > 0 && _run_range(nchunk) do a, b
+            _lmul_batched_range!(y, x, Uc, a, b, Val(K), Val(N))
+        end
+        ntail > 0 && _lmul_single_range!(y, x, Uc, skey, offs, nchunk * K, nred - 1)
+    else
+        _run_range(nred) do a, b
+            _lmul_single_range!(y, x, Uc, skey, offs, a, b)
+        end
+    end
+    return y
+end
+
+"""
+    axpy_kernel!(y::AbstractVector, α::Number, x::AbstractVector, key, U) -> y
+
+`y += α·(U·x)`（就地累加，无中间数组；`y` 与 `x` 不得共享存储）。
+"""
+function axpy_kernel!(y::AbstractVector, α::Number, x::AbstractVector,
+                      key::NTuple{N,Int}, U::AbstractMatrix) where {N}
+    D = 1 << N
+    (size(U, 1) == size(U, 2) == D) ||
+        throw(ArgumentError("matrix size $(size(U)) does not match $N qubit(s)"))
+    length(y) == length(x) || throw(DimensionMismatch("state length mismatch"))
+    OT = promote_type(eltype(y), eltype(x))
+    nred = length(y) >> N
+    skey = _sorted_key(key)
+    offs = _offsets(key)
+    Uc = SMatrix{D,D,OT}(U)
+    αc = convert(OT, α)
+    if offs == ntuple(j -> j - 1, Val(D))
+        K = min(_KERNEL_BATCH[], D)
+        nchunk, ntail = divrem(nred, K)
+        nchunk > 0 && _run_range(nchunk) do a, b
+            _axpy_batched_range!(y, αc, x, Uc, a, b, Val(K), Val(N))
+        end
+        ntail > 0 && _axpy_single_range!(y, αc, x, Uc, skey, offs, nchunk * K, nred - 1)
+    else
+        _run_range(nred) do a, b
+            _axpy_single_range!(y, αc, x, Uc, skey, offs, a, b)
+        end
+    end
+    return y
+end
+
+function _lmul_batched_range!(y::AbstractVector, x::AbstractVector,
+                              U::SMatrix{D,D,OT}, istart::Int, iend::Int,
+                              ::Val{K}, ::Val{N}) where {OT,D,K,N}
+    len = D * K
+    @inbounds for t in istart:iend
+        base0 = len * t
+        V = SMatrix{D,K,OT}(ntuple(j -> x[base0 + j], Val(len)))
+        O = U * V
+        for j in 1:len
+            y[base0 + j] = O[j]
+        end
+    end
+    return nothing
+end
+
+function _lmul_single_range!(y::AbstractVector, x::AbstractVector,
+                             U::SMatrix{D,D,OT}, skey::NTuple{N,Int},
+                             offs::NTuple{D,Int}, istart::Int, iend::Int) where {OT,D,N}
+    @inbounds for rest in istart:iend
+        base = _bit_insert_zeros(rest, skey)
+        loc = SVector{D,OT}(ntuple(i -> x[base + offs[i] + 1], Val(D)))
+        out = U * loc
+        for i in 1:D
+            y[base + offs[i] + 1] = out[i]
+        end
+    end
+    return nothing
+end
+
+function _axpy_batched_range!(y::AbstractVector{T}, α::OT, x::AbstractVector{T},
+                              U::SMatrix{D,D,OT}, istart::Int, iend::Int,
+                              ::Val{K}, ::Val{N}) where {T,OT,D,K,N}
+    len = D * K
+    @inbounds for t in istart:iend
+        base0 = len * t
+        V = SMatrix{D,K,T}(ntuple(j -> x[base0 + j], Val(len)))
+        O = U * V
+        for j in 1:len
+            y[base0 + j] += α * O[j]
+        end
+    end
+    return nothing
+end
+
+function _axpy_single_range!(y::AbstractVector{T}, α::OT, x::AbstractVector{T},
+                             U::SMatrix{D,D,OT}, skey::NTuple{N,Int},
+                             offs::NTuple{D,Int}, istart::Int, iend::Int) where {T,OT,D,N}
+    @inbounds for rest in istart:iend
+        base = _bit_insert_zeros(rest, skey)
+        loc = SVector{D,T}(ntuple(i -> x[base + offs[i] + 1], Val(D)))
+        out = U * loc
+        for i in 1:D
+            y[base + offs[i] + 1] += α * out[i]
+        end
+    end
+    return nothing
+end
+
+# DM 平坦存储（列 major，`ρ[i + d·j]`）上的左乘：只作用行索引（列不变），
+# 行局域块 gather 跨步为 `d`。
+
+function dm_lmul_kernel!(y::AbstractVector, x::AbstractVector, d::Int,
+                         key::NTuple{N,Int}, U::AbstractMatrix) where {N}
+    D = 1 << N
+    (size(U, 1) == size(U, 2) == D) ||
+        throw(ArgumentError("matrix size $(size(U)) does not match $N qubit(s)"))
+    length(y) == length(x) == d * d || throw(DimensionMismatch("density storage mismatch"))
+    OT = promote_type(eltype(y), eltype(x))
+    nred = d >> N
+    skey = _sorted_key(key)
+    offs = _offsets(key)
+    Uc = SMatrix{D,D,OT}(U)
+    _run_range(nred * d) do a, b
+        _dm_lmul_single_range!(y, x, d, Uc, skey, offs, a, b)
+    end
+    return y
+end
+
+function dm_axpy_kernel!(y::AbstractVector, α::Number, x::AbstractVector, d::Int,
+                         key::NTuple{N,Int}, U::AbstractMatrix) where {N}
+    D = 1 << N
+    (size(U, 1) == size(U, 2) == D) ||
+        throw(ArgumentError("matrix size $(size(U)) does not match $N qubit(s)"))
+    length(y) == length(x) == d * d || throw(DimensionMismatch("density storage mismatch"))
+    OT = promote_type(eltype(y), eltype(x))
+    nred = d >> N
+    skey = _sorted_key(key)
+    offs = _offsets(key)
+    Uc = SMatrix{D,D,OT}(U)
+    αc = convert(OT, α)
+    _run_range(nred * d) do a, b
+        _dm_axpy_single_range!(y, αc, x, d, Uc, skey, offs, a, b)
+    end
+    return y
+end
+
+function _dm_lmul_single_range!(y::AbstractVector, x::AbstractVector, d::Int,
+                                U::SMatrix{D,D,OT}, skey::NTuple{N,Int},
+                                offs::NTuple{D,Int}, istart::Int, iend::Int) where {OT,D,N}
+    @inbounds for rest in istart:iend
+        rr, c = divrem(rest, d)          # 行非 key 位组合 / 完整列（左乘不改列）
+        base = _bit_insert_zeros(rr, skey)
+        loc = SVector{D,OT}(ntuple(li -> x[base + offs[li] + d * c + 1], Val(D)))
+        out = U * loc
+        for li in 1:D
+            y[base + offs[li] + d * c + 1] = out[li]
+        end
+    end
+    return nothing
+end
+
+function _dm_axpy_single_range!(y::AbstractVector{T}, α::OT, x::AbstractVector, d::Int,
+                                U::SMatrix{D,D,OT}, skey::NTuple{N,Int},
+                                offs::NTuple{D,Int}, istart::Int, iend::Int) where {T,OT,D,N}
+    @inbounds for rest in istart:iend
+        rr, c = divrem(rest, d)
+        base = _bit_insert_zeros(rr, skey)
+        loc = SVector{D,OT}(ntuple(li -> x[base + offs[li] + d * c + 1], Val(D)))
+        out = U * loc
+        for li in 1:D
+            y[base + offs[li] + d * c + 1] += α * out[li]
+        end
+    end
+    return nothing
+end
+
 # ── expect：局域矩阵元 ⟨v|U|v⟩ / ⟨vc|U|v⟩ ───────────────────────────────────
 
 """

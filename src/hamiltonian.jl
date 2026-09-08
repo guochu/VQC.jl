@@ -209,13 +209,158 @@ function apply(t::SpinOpTerm, s::StateVector)
     return StateVector(v, _nqubits(s))
 end
 
+# ── LinearAlgebra.mul! / axpy!：SpinOp 的无中间态作用 ────────────────────────
+#
+#   mul!(y, t, x)            y = t·x（公开接口，LinearAlgebra 惯例）
+#   _axpy!(α, t, x, y, ws)   y += α·(t·x)（内部接口，ws 为工作缓冲）
+#
+# 单因子项逐块 out-of-place kernel，全程不分配中间振幅数组；多因子项
+# 首因子 out-of-place 写入目标 / 工作缓冲，其余因子就地作用，同样零分配。
+
+"实输出态上作用复算子 / 复系数 → 明确报错（避免 kernel 静默 InexactError）。"
+function _check_real_output(y, t::SpinOpTerm, α::Number = 1)
+    eltype(y) <: Real || return nothing
+    (isreal(α) && isreal(t.coeff)) ||
+        throw(ArgumentError("complex scalar on real output; provide a complex state"))
+    for (_, op) in t.ops
+        eltype(_spin_matrix(op)) <: Real ||
+            throw(ArgumentError("complex operator on real output; provide a complex state"))
+    end
+    return nothing
+end
+
+# 乘积项的逆序 (key, matrix) 因子表：先作用最右因子 = 正序矩阵积
+function _spin_factors(t::SpinOpTerm, n::Int)
+    fs = Tuple{NTuple{1,Int},AbstractMatrix}[]
+    for (q, op) in reverse(t.ops)
+        1 <= q <= n || throw(ArgumentError("operator position $q out of range [1, $n]"))
+        push!(fs, ((q - 1,), _spin_matrix(op)))
+    end
+    return fs
+end
+
+function LinearAlgebra.mul!(y::StateVector, t::SpinOpTerm, x::StateVector)
+    n = _nqubits(y)
+    (_nqubits(x) == n && length(y) == length(x)) ||
+        throw(DimensionMismatch("state dimension mismatch"))
+    y === x && throw(ArgumentError("output must not alias input"))
+    _check_real_output(y, t)
+    factors = _spin_factors(t, n)
+    key, m = factors[1]
+    lmul_kernel!(y.data, x.data, key, m)       # 首因子 out-of-place（y 旧值可覆盖）
+    for i in 2:length(factors)                 # 其余因子就地作用
+        apply_kernel!(y.data, factors[i]...)
+    end
+    rmul!(y.data, t.coeff)
+    return y
+end
+
+function LinearAlgebra.mul!(y::DensityMatrix, t::SpinOpTerm, x::DensityMatrix)
+    n = _nqubits(y)
+    (_nqubits(x) == n && length(y.data) == length(x.data)) ||
+        throw(DimensionMismatch("state dimension mismatch"))
+    y.data === x.data && throw(ArgumentError("output must not alias input"))
+    _check_real_output(y, t)
+    d = 1 << n
+    factors = _spin_factors(t, n)
+    key, m = factors[1]
+    dm_lmul_kernel!(y.data, x.data, d, key, m)
+    for i in 2:length(factors)
+        apply_kernel!(y.data, factors[i]...)   # 就地行作用
+    end
+    rmul!(y.data, t.coeff)
+    return y
+end
+
+"""
+    _axpy!(α, t::SpinOpTerm, x, y, ws) -> y    # y += α·(t·x)
+    _axpy!(α, s::SpinOpSum, x, y, ws) -> y     # y += Σₖ α·(tₖ·x)
+
+内部接口：就地累加。单因子项逐块 kernel，全程零分配；多因子项把
+`t·x` 作用到工作缓冲 `ws`（内容可被覆盖）后整向量累加——`ws` 由
+调用方创建并复用，内部不再分配量子态。`x` 与 `y` 不得共享存储。
+"""
+function _axpy!(α::Number, t::SpinOpTerm, x::StateVector, y::StateVector, ws::StateVector)
+    n = _nqubits(y)
+    (_nqubits(x) == n && _nqubits(ws) == n && length(y) == length(x) == length(ws)) ||
+        throw(DimensionMismatch("state dimension mismatch"))
+    y === x && throw(ArgumentError("output must not alias input"))
+    _check_real_output(y, t, α)
+    factors = _spin_factors(t, n)
+    if length(factors) == 1
+        key, m = factors[1]
+        axpy_kernel!(y.data, α * t.coeff, x.data, key, m)
+        return y
+    end
+    mul!(ws, t, x)                         # ws = t·x（ws 可覆盖，零分配）
+    y.data .+= α .* ws.data
+    return y
+end
+
+function _axpy!(α::Number, t::SpinOpTerm, x::DensityMatrix, y::DensityMatrix, ws::DensityMatrix)
+    n = _nqubits(y)
+    (_nqubits(x) == n && _nqubits(ws) == n &&
+     length(y.data) == length(x.data) == length(ws.data)) ||
+        throw(DimensionMismatch("state dimension mismatch"))
+    y.data === x.data && throw(ArgumentError("output must not alias input"))
+    _check_real_output(y, t, α)
+    factors = _spin_factors(t, n)
+    if length(factors) == 1
+        key, m = factors[1]
+        dm_axpy_kernel!(y.data, α * t.coeff, x.data, 1 << n, key, m)
+        return y
+    end
+    mul!(ws, t, x)
+    y.data .+= α .* ws.data
+    return y
+end
+
+function _axpy!(α::Number, s::SpinOpSum, x::ST, y::ST, ws::ST) where {ST<:Union{StateVector,DensityMatrix}}
+    for t in s.terms
+        _axpy!(α, t, x, y, ws)             # 各项 t.coeff 已计入，逐项累加
+    end
+    return y
+end
+
 function apply(s::SpinOpSum, s0::StateVector)
     isempty(s.terms) && throw(ArgumentError("empty SpinOpSum"))
-    out = storage(apply(first(s.terms), s0))   # apply 已返回新态，无需再复制
-    for t in @view s.terms[2:end]
-        out .+= storage(apply(t, s0))
+    T = promote_type(eltype(s0), ComplexF64)
+    out = StateVector(zeros(T, length(storage(s0))), _nqubits(s0))
+    ws = StateVector(similar(out.data), _nqubits(s0))   # 多因子项的工作缓冲
+    _axpy!(one(T), s, s0, out, ws)         # out = Σₖ tₖ·ψ
+    return out
+end
+
+"""
+    apply(t::SpinOpTerm, s::DensityMatrix) -> DensityMatrix
+    apply(s::SpinOpSum, s0::DensityMatrix) -> DensityMatrix
+
+把自旋算符**左乘**到密度矩阵上（`ρ ← t·ρ`，非就地，返回新密度矩阵）。
+行 / 列索引独立处理：左乘只作用行索引，逐因子走局域核，
+复杂度 `O(#ops · 4ⁿ)`，无需构造 `2ⁿ × 2ⁿ` 满矩阵。
+"""
+function apply(t::SpinOpTerm, s::DensityMatrix)
+    n = _nqubits(s)
+    data = copy(s.data)
+    for (q, op) in reverse(t.ops)      # 逆序作用 = 左乘 A₁ A₂ ⋯
+        m = _spin_matrix(op)
+        1 <= q <= n || throw(ArgumentError("operator position $q out of range [1, $n]"))
+        if eltype(data) <: Real && !(eltype(m) <: Real)
+            data = convert(Vector{complex(float(eltype(data)))}, data)
+        end
+        apply_kernel!(data, (q - 1,), m)   # 只作用行索引：ρ ← m ρ
     end
-    return StateVector(out, _nqubits(s0))
+    rmul!(data, t.coeff)
+    return DensityMatrix(data, n)
+end
+
+function apply(s::SpinOpSum, s0::DensityMatrix)
+    isempty(s.terms) && throw(ArgumentError("empty SpinOpSum"))
+    T = promote_type(eltype(s0), ComplexF64)
+    out = DensityMatrix(zeros(T, length(s0.data)), _nqubits(s0))
+    ws = DensityMatrix(similar(out.data), _nqubits(s0))   # 多因子项的工作缓冲
+    _axpy!(one(T), s, s0, out, ws)         # out = Σₖ tₖ·ρ
+    return out
 end
 
 """
@@ -224,26 +369,39 @@ end
     expectation(t::SpinOpTerm, s::DensityMatrix) -> Complex
     expectation(s::SpinOpSum, s::DensityMatrix) -> Complex
 
-自旋算符期望值：态矢量走 `apply` 的局域核路径（`⟨ψ|t|ψ⟩`），
-密度矩阵走局域 / 满矩阵展开（`tr(ρ t)`）。
+自旋算符期望值：态矢量与密度矩阵都走 `apply` 的局域核路径
+（`⟨ψ|t|ψ⟩` 与 `tr(ρ t)`，后者经 `tr(t·ρ)` 计算），不构造满矩阵。
 """
 function expectation(t::SpinOpTerm, s::StateVector)
     return dot(storage(s), storage(apply(t, s)))
 end
 
 function expectation(s::SpinOpSum, st::StateVector)
-    acc = zero(promote_type(ComplexF64, eltype(st)))
+    T = promote_type(eltype(st), ComplexF64)
+    vw = StateVector(similar(storage(st), T), _nqubits(st))   # 工作缓冲（一次分配）
+    v = storage(st)
+    acc = zero(T)
     for t in s.terms
-        acc += dot(storage(st), storage(apply(t, st)))   # apply 已含 t.coeff
+        mul!(vw, t, st)                    # vw = t·ψ，无中间态
+        acc += dot(v, storage(vw))
     end
     return acc
 end
 
 function expectation(t::SpinOpTerm, s::DensityMatrix)
-    n = _nqubits(s)
-    return expectation(mat(t, n), s)
+    tρ = apply(t, s)                     # t·ρ（局域核，已含 t.coeff）
+    d = 1 << _nqubits(s)
+    return sum(tρ.data[i * d + i + 1] for i in 0:d-1)   # tr(tρ) = tr(ρt)
 end
 
 function expectation(s::SpinOpSum, st::DensityMatrix)
-    return expectation(mat(s, _nqubits(st)), st)   # mat 已含各项 coeff
+    T = promote_type(eltype(st), ComplexF64)
+    ρw = DensityMatrix(similar(st.data, T), _nqubits(st))     # 工作缓冲（一次分配）
+    d = 1 << _nqubits(st)
+    acc = zero(T)
+    for t in s.terms
+        mul!(ρw, t, st)                    # ρw = t·ρ，无中间态
+        acc += sum(ρw.data[i * d + i + 1] for i in 0:d-1)   # tr(t·ρ)
+    end
+    return acc
 end

@@ -46,6 +46,12 @@ const spin_mat = VQC.mat
                        SpinOpTerm(0.3, 1 => :Y, 4 => A)])
         @test norm(storage(apply(H, ψ)) - spin_mat(H, n) * storage(ψ)) / norm(storage(apply(H, ψ))) < 1e-12
 
+        # 密度矩阵：左乘 ρ ← t·ρ 与 SpinOpSum 的线性组合
+        ρ = DensityMatrix(ψ)
+        R = reshape(storage(ρ), 2^n, 2^n)      # 平坦布局 = 列主序 vec(ρ)
+        @test norm(apply(t, ρ).data - vec(spin_mat(t, n) * R)) / norm(apply(t, ρ).data) < 1e-12
+        @test norm(apply(H, ρ).data - vec(spin_mat(H, n) * R)) / norm(apply(H, ρ).data) < 1e-12
+
         # 位置越界
         @test_throws ArgumentError apply(SpinOpTerm(1.0, 5 => :X), ψ)
         @test_throws ArgumentError SpinOpTerm(1.0, 1 => randn(3, 3))
