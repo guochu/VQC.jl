@@ -390,11 +390,18 @@ end
     expectation(t::SpinOpTerm, s::DensityMatrix) -> Complex
     expectation(s::SpinOpSum, s::DensityMatrix) -> Complex
 
-自旋算符期望值：态矢量与密度矩阵都走 `apply` 的局域核路径
-（`⟨ψ|t|ψ⟩` 与 `tr(ρ t)`，后者经 `tr(t·ρ)` 计算），不构造满矩阵。
+自旋算符期望值：单因子项直接走 `expect_kernel` / `dm_expect_kernel`
+（`⟨ψ|A|ψ⟩` 与 `tr(ρ A)`），**零分配**；多因子项仅一个工作缓冲
+（`mul!` 覆盖复用）。均不构造满矩阵。
 """
 function expectation(t::SpinOpTerm, s::StateVector)
-    return dot(storage(s), storage(apply(t, s)))
+    n = _nqubits(s)
+    factors = _spin_factors(t, n)
+    if length(factors) == 1
+        key, m = factors[1]
+        return t.coeff * expect_kernel(storage(s), key, m)
+    end
+    return t.coeff * multi_expect_kernel(storage(s), factors)
 end
 
 function expectation(s::SpinOpSum, st::StateVector)
@@ -410,9 +417,15 @@ function expectation(s::SpinOpSum, st::StateVector)
 end
 
 function expectation(t::SpinOpTerm, s::DensityMatrix)
-    tρ = apply(t, s)                     # t·ρ（局域核，已含 t.coeff）
-    d = 1 << _nqubits(s)
-    return sum(tρ.data[i * d + i + 1] for i in 0:d-1)   # tr(tρ) = tr(ρt)
+    n = _nqubits(s)
+    d = 1 << n
+    factors = _spin_factors(t, n)
+    if length(factors) == 1
+        key, m = factors[1]
+        return t.coeff * dm_expect_kernel(s.data, d, key, m)
+    end
+    ws = similar(s.data, promote_type(eltype(s), ComplexF64))
+    return t.coeff * dm_multi_expect_kernel(s.data, d, factors, ws)
 end
 
 function expectation(s::SpinOpSum, st::DensityMatrix)
