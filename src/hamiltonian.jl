@@ -277,12 +277,15 @@ end
     _axpy!(α, s::SpinOpSum, x, y, ws) -> y     # y += Σₖ α·(tₖ·x)
 
 内部接口：就地累加。单因子项逐块 kernel，全程零分配；多因子项把
-`t·x` 作用到工作缓冲 `ws`（内容可被覆盖）后整向量累加——`ws` 由
-调用方创建并复用，内部不再分配量子态。`x` 与 `y` 不得共享存储。
+`t·x` 的前 `k-1` 个因子作用到工作缓冲 `ws`（内容可被覆盖），最后
+一个因子以 axpy kernel 直接融合累加进 `y`——无需整向量二次遍历。
+`ws` 由调用方创建并复用（仅多因子项需要），内部不再分配量子态。
+`x` 与 `y` 不得共享存储。
 """
-function _axpy!(α::Number, t::SpinOpTerm, x::StateVector, y::StateVector, ws::StateVector)
+function _axpy!(α::Number, t::SpinOpTerm, x::StateVector, y::StateVector,
+                ws::Union{StateVector,Nothing})
     n = _nqubits(y)
-    (_nqubits(x) == n && _nqubits(ws) == n && length(y) == length(x) == length(ws)) ||
+    (_nqubits(x) == n && length(y) == length(x)) ||
         throw(DimensionMismatch("state dimension mismatch"))
     y === x && throw(ArgumentError("output must not alias input"))
     _check_real_output(y, t, α)
@@ -292,30 +295,44 @@ function _axpy!(α::Number, t::SpinOpTerm, x::StateVector, y::StateVector, ws::S
         axpy_kernel!(y.data, α * t.coeff, x.data, key, m)
         return y
     end
-    mul!(ws, t, x)                         # ws = t·x（ws 可覆盖，零分配）
-    y.data .+= α .* ws.data
+    ws === nothing && throw(ArgumentError("multi-factor term requires a workspace"))
+    key, m = factors[1]
+    lmul_kernel!(ws.data, x.data, key, m)          # ws ← f₁·x
+    for i in 2:length(factors) - 1                 # 中间因子就地作用
+        apply_kernel!(ws.data, factors[i]...)
+    end
+    key, m = factors[end]
+    axpy_kernel!(y.data, α * t.coeff, ws.data, key, m)   # 末因子融合累加
     return y
 end
 
-function _axpy!(α::Number, t::SpinOpTerm, x::DensityMatrix, y::DensityMatrix, ws::DensityMatrix)
+function _axpy!(α::Number, t::SpinOpTerm, x::DensityMatrix, y::DensityMatrix,
+                ws::Union{DensityMatrix,Nothing})
     n = _nqubits(y)
-    (_nqubits(x) == n && _nqubits(ws) == n &&
-     length(y.data) == length(x.data) == length(ws.data)) ||
+    (_nqubits(x) == n && length(y.data) == length(x.data)) ||
         throw(DimensionMismatch("state dimension mismatch"))
     y.data === x.data && throw(ArgumentError("output must not alias input"))
     _check_real_output(y, t, α)
+    d = 1 << n
     factors = _spin_factors(t, n)
     if length(factors) == 1
         key, m = factors[1]
-        dm_axpy_kernel!(y.data, α * t.coeff, x.data, 1 << n, key, m)
+        dm_axpy_kernel!(y.data, α * t.coeff, x.data, d, key, m)
         return y
     end
-    mul!(ws, t, x)
-    y.data .+= α .* ws.data
+    ws === nothing && throw(ArgumentError("multi-factor term requires a workspace"))
+    key, m = factors[1]
+    dm_lmul_kernel!(ws.data, x.data, d, key, m)
+    for i in 2:length(factors) - 1
+        apply_kernel!(ws.data, factors[i]...)
+    end
+    key, m = factors[end]
+    dm_axpy_kernel!(y.data, α * t.coeff, ws.data, d, key, m)
     return y
 end
 
-function _axpy!(α::Number, s::SpinOpSum, x::ST, y::ST, ws::ST) where {ST<:Union{StateVector,DensityMatrix}}
+function _axpy!(α::Number, s::SpinOpSum, x::ST, y::ST,
+                ws::Union{ST,Nothing}) where {ST<:Union{StateVector,DensityMatrix}}
     for t in s.terms
         _axpy!(α, t, x, y, ws)             # 各项 t.coeff 已计入，逐项累加
     end
@@ -326,7 +343,9 @@ function apply(s::SpinOpSum, s0::StateVector)
     isempty(s.terms) && throw(ArgumentError("empty SpinOpSum"))
     T = promote_type(eltype(s0), ComplexF64)
     out = StateVector(zeros(T, length(storage(s0))), _nqubits(s0))
-    ws = StateVector(similar(out.data), _nqubits(s0))   # 多因子项的工作缓冲
+    # 仅存在多因子项时才需要工作缓冲（纯单因子线路零额外分配）
+    ws = any(t -> length(t.ops) > 1, s.terms) ?
+         StateVector(similar(out.data), _nqubits(s0)) : nothing
     _axpy!(one(T), s, s0, out, ws)         # out = Σₖ tₖ·ψ
     return out
 end
@@ -358,7 +377,9 @@ function apply(s::SpinOpSum, s0::DensityMatrix)
     isempty(s.terms) && throw(ArgumentError("empty SpinOpSum"))
     T = promote_type(eltype(s0), ComplexF64)
     out = DensityMatrix(zeros(T, length(s0.data)), _nqubits(s0))
-    ws = DensityMatrix(similar(out.data), _nqubits(s0))   # 多因子项的工作缓冲
+    # 仅存在多因子项时才需要工作缓冲（纯单因子线路零额外分配）
+    ws = any(t -> length(t.ops) > 1, s.terms) ?
+         DensityMatrix(similar(out.data), _nqubits(s0)) : nothing
     _axpy!(one(T), s, s0, out, ws)         # out = Σₖ tₖ·ρ
     return out
 end
