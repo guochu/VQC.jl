@@ -183,12 +183,12 @@ end
 
 """
     apply(t::SpinOpTerm, s::StateVector) -> StateVector
-    apply(s::SpinOpSum, s0::StateVector) -> StateVector
 
-把自旋算符作用到态矢量上（**非就地**，返回新态）。
+把自旋算符作用到态矢量上（**非就地**，返回新态）；
+`SpinOpSum` 的对应方法 `apply(s::SpinOpSum, s0)` 为各项作用的线性组合。
 
 乘积项 `t = c · A₁ A₂ …` 无需构造大矩阵：逐因子走局域 kernel，
-复杂度 `O(#ops · 2ⁿ · D_local)`。`SpinOpSum` 的作用为各项的线性组合。
+复杂度 `O(#ops · 2ⁿ · D_local)`。
 适用于高效本征态求解（Lanczos / 精确对角化的作用算符）与
 时间演化（Trotter 步：`exp(-i·Δt·H) ≈ Πₖ apply(termₖ, ·)`）。
 
@@ -211,7 +211,7 @@ end
 
 function apply(s::SpinOpSum, s0::StateVector)
     isempty(s.terms) && throw(ArgumentError("empty SpinOpSum"))
-    out = copy(storage(apply(first(s.terms), s0)))
+    out = storage(apply(first(s.terms), s0))   # apply 已返回新态，无需再复制
     for t in @view s.terms[2:end]
         out .+= storage(apply(t, s0))
     end

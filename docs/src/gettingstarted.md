@@ -1,108 +1,138 @@
-# Getting Started
+# 快速开始
 
-In this section we will provide a simple pipeline to demonstrate how to
-use VQC to build quantum computing applications
+本节给出用 VQC 做量子线路模拟的基本流程：构造态 → 构造线路 → 演化 → 测量。
 
+## 量子态
 
-Pipeline for quantum circuit simulation
+态矢量为 `StateVector`（纯态），密度矩阵为 `DensityMatrix`（混合态）。
+二者内部存储可通过 `storage` 取出（`StateVector` 为长度 `2^n` 的向量，
+`DensityMatrix` 为长度 `4^n` 的平坦向量，行索引为低位）。
 
-## Initialize a quantum state
-Definition of function qstate
 ```@docs
-qstate(::Type{T}, thetas::AbstractVector{<:Real}) where {T <: Number}
-qstate(thetas::AbstractVector{<:Real})
-qstate(::Type{T}, n::Int) where {T <: Number}
-qstate(n::Int) 
-```
-Extract amplitudes from quantum state
-```@docs
-amplitude(s::AbstractVector, i::AbstractVector{Int}) 
-amplitudes(s::AbstractVector)
+StateVector
+DensityMatrix
+zero_state
+rand_state
+rand_densitymatrix
 ```
 
-
-Examples
-```@example
-push!(LOAD_PATH, "../../src")
-using VQC
-state = qstate(2)
-state = qstate([1, 0])
-state = qstate([0.5, 0.7])
-```
-
-
-## Quantum gate
-Predefined elementary gates "X, Y, Z, S, H, sqrtX, sqrtY, T, Rx, Ry, Rz, CONTROL, CZ, CNOT, CX, SWAP, iSWAP, XGate, YGate, ZGate, HGate, SGate, TGate, SqrtXGate, SqrtYGate, RxGate, RyGate, RzGate, CZGate, CNOTGate, SWAPGate, iSWAPGate, CRxGate, CRyGate, CRzGate, TOFFOLIGate"
+`qubit_encoding` / `amplitude_encoding` / `onehot_encoding` 从经典数据构造态；
+`amplitude` / `amplitudes` 读取振幅；`permute` 置换比特轴。
 
 ```@example
 using VQC
 
-circuit = QCircuit()
-
-# standard one-qubit gate
-push!(circuit, (1, H))
-empty!(circuit)
-push!(circuit, HGate(1))
-empty!(circuit)
-push!(circuit, gate(1, H))
-empty!(circuit)
-# standard two-qubit gate
-push!(circuit, ((1, 2), CZ))
-empty!(circuit)
-push!(circuit, CZGate((1, 2)))
-empty!(circuit)
-push!(circuit, gate((1,2), CZ))
-empty!(circuit)
-# a parameteric one-qubit gate
-push!(circuit, RxGate(1, Variable(0.5)))
-empty!(circuit)
-# a parameteric two-qubit gate
-push!(circuit, CRxGate((1,2), Variable(0.5)))
-empty!(circuit)
-# This will create a non-parameteric gate instead
-push!(circuit, RxGate(1, 0.5))
+ψ0 = zero_state(3)               # |000⟩
+ψp = qubit_encoding([π/2, 0.0, 0.0])   # 单比特旋转角直积态
+ρ = DensityMatrix(zero_state(2)) # 由纯态构造密度矩阵
+amplitude(ψp, [1, 0, 0])         # ⟨100|ψp⟩
 ```
 
-## Quantum circuit
-Adding new gates
-```@docs
-add!(x::AbstractCircuit, s)
-Base.push!(x::AbstractCircuit, s::AbstractGate)
-Base.append!(x::AbstractCircuit, y::AbstractCircuit)
-Base.append!(x::AbstractCircuit, y::Vector{T}) where {T<:AbstractGate}
-```
+## 线路与门
 
-Circuit manipulations
+线路来自 QuantumCircuits 的 `Circuit`：`push!` 追加指令，
+门为单例或构造函数（`H`、`X`、`CX`、`RX`、`RZZ`、…），
+可用 `ctrl` / `pow` / `inv` 修饰；参数门用符号（`:θ`）表示待绑定参数。
+
 ```@example
-using VQC
-circuit = QCircuit()
-push!(circuit, (1, H))
-push!(circuit, ((1, 2), CZ))
-c1 = transpose(circuit)
-c2 = conj(circuit)
-c3 = circuit'
+using QuantumCircuits, VQC
+
+c = Circuit(3)
+push!(c, H(1))                   # 单比特门
+push!(c, CX(1, 2))               # 受控门
+push!(c, RZZ(0.3, 2, 3))         # 常数值参数门
+push!(c, RX(:θ, 3))              # 符号参数门
+push!(c, ctrl(H, 1)(1, 2))       # ctrl 修饰：qubit 1 控制 H 作用在 qubit 2
+push!(c, barrier(1, 2, 3))       # 屏障
+depth(c), count_ops(c)
 ```
 
-## Apply quantum circuit to state
+## 演化线路
+
 ```@docs
-apply!(circuit::AbstractCircuit, v::Vector)
-*(circuit::AbstractCircuit, v::AbstractVector)
-*(v::AbstractVector, circuit::AbstractCircuit)
+simulate
+apply!
 ```
 
-## Quantum measurement
-Measure and collapse a quantum state
+```@example
+using QuantumCircuits, VQC
+
+c = Circuit(2)
+push!(c, H(1))
+push!(c, CX(1, 2))
+
+ψ = simulate(c, zero_state(2))       # 非就地：返回新态
+x = zero_state(2)
+simulate!(c, x)                      # 就地
+probabilities(ψ)
+```
+
+符号参数在演化时绑定（`params` 接受按序向量或 `Dict`）：
+
+```@example
+using QuantumCircuits, VQC
+
+cp = Circuit(2)
+push!(cp, RX(:θ1, 1))
+push!(cp, RY(:θ2, 2))
+
+s1 = simulate(cp, zero_state(2); params = [0.4, -0.2])          # 按 parameters(c) 顺序
+s2 = simulate(cp, zero_state(2); params = Dict(:θ1 => 0.4, :θ2 => -0.2))
+s1 ≈ s2
+```
+
+`params` 传 `Dict` 时键可以是 `Param` / `Symbol`。
+同名参数共享（权重共享）；也可以先用 QuantumCircuits 的
+`assign` / `assign!` 把符号替换为数值再演化。
+
+## 直接作用局域矩阵与 Kraus 算子
+
+绕开 IR，直接把局域矩阵 / Kraus 算子集作用到态上（核心层原语，
+`positions[1]` 为矩阵最高位）：
+
 ```@docs
-measure(qstate::AbstractVector, pos::Int)
-measure!(qstate::AbstractVector, pos::Int; auto_reset::Bool=true)
+apply_kraus!
+reset_qubit_zero!
 ```
 
-Postselection
+```@example
+using VQC, LinearAlgebra
+
+ψ = rand_state(3)
+apply(ψ, Matrix{Float64}(I, 2, 2), [1])   # 单位阵作用在 qubit 1
+ρ = apply_kraus!(DensityMatrix(ψ), [[1.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 1.0]], [1])
+```
+
+## 测量与后选择
+
 ```@docs
-post_select!(qstate::AbstractVector, key::Int, state::Int=0)
-post_select(qstate::AbstractVector, key::Int, state::Int=0; keep::Bool=false)
+probabilities
+measure!
+measure
+sample
+post_select!
+post_select
 ```
 
+```@example
+using QuantumCircuits, VQC
 
+c = Circuit(2)
+push!(c, H(1))
+push!(c, CX(1, 2))
+ψ = simulate(c, zero_state(2))
 
+probabilities(ψ, 1)              # 单比特分布
+outcome, p = measure!(ψ, 1)      # 测量并坍缩
+samples = sample(ψ, 16)          # 计算基采样
+```
 
+## 可观测量与约化
+
+```@docs
+partial_tr
+fidelity
+```
+
+自旋算符代数（`SpinOpTerm` / `SpinOpSum`）与时间演化见
+[哈密顿量与自旋算符](@ref)。

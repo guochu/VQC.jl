@@ -113,12 +113,7 @@ using QuantumCircuits: Param
     fd9(θ) = (f9b(θ + 1e-7) - f9b(θ - 1e-7)) / 2e-7
     @test g9 ≈ fd9(θ0) atol = 1e-6
 
-    # ── 10. 单门乘法糖 `op * ψ` 的梯度 ──
-    f10 = θ -> real(expectation(hZ0, RX(θ, 1) * zero_state(1)))
-    g10 = Zygote.gradient(f10, θ0)[1]
-    @test g10 ≈ -sin(θ0) atol = 1e-9
-
-    # ── 11. BlockOp 透明回传 ──
+    # ── 10. BlockOp 透明回传 ──
     c11 = Circuit(2)
     body = Circuit(1)
     push!(body, RX(:θ, 1))

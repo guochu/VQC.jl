@@ -6,9 +6,6 @@
     ψ = simulate(c, zero_state(2))
     @test probabilities(ψ) ≈ [0.5, 0, 0, 0.5] atol = 1e-12
 
-    # 线路乘法糖
-    @test (c * zero_state(2)) ≈ ψ
-
     # 与稠密矩阵组合一致
     M = embed_ref(mat(CX), [1, 2], 2) * embed_ref(mat(H), [1], 2)
     ref = M * storage(zero_state(2))

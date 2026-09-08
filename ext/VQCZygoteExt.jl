@@ -326,25 +326,6 @@ for S in (:StateVector, :DensityMatrix)
             out = _simulate_bound(c, s, env)
             return out, Δ -> _simulate_pullback(c, s, out, env, Δ)
         end
-
-        # `op * s` 糖：参数梯度经 GateOp 结构体切线的 params 字段回传
-        # （要求 op 参数为常量/已绑定——符号参数在前向 mat 时即报错）
-        @adjoint function Base.:*(op::GateOp, s::$S)
-            out = op * s
-            return out, Δ -> begin
-                Δ2 = copy(Δ)
-                qs = qubits(op)
-                m = mat(op)
-                θ = Float64[p for p in op.params]
-                dUs = _gate_jacobians(op.gate, θ)
-                gparams = zeros(Float64, length(op.params))
-                for (j, dU) in enumerate(dUs)
-                    gparams[j] = _grad_contrib(s, m, dU, Δ2, qs)
-                end
-                _apply_back!(Δ2, qs, adjoint(m))
-                return ((gate = nothing, qubits = nothing, params = gparams), Δ2)
-            end
-        end
     end
 end
 

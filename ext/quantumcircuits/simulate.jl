@@ -70,11 +70,9 @@ _param_env(::Circuit, ::Nothing) = _ParamEnv()
 
 """
     simulate(c::Circuit, state; params=nothing) -> state'
-    simulate!(c::Circuit, state; params=nothing) -> state
-    c * state
 
-演化整条线路（`simulate` 非就地；`simulate!` 就地）。测量结果写回
-经典寄存器，供 `IfOp` 条件分支使用。
+演化整条线路（`simulate` 非就地；对应的 `simulate!` 为就地版本）。
+测量结果写回经典寄存器，供 `IfOp` 条件分支使用。
 
 `params`：
 
@@ -120,9 +118,3 @@ end
 function _apply_with_store!(s, op::IfOp, store::ClassicalStore, env::_ParamEnv)
     return apply!(s, op, store, env)
 end
-
-# ── 便利运算符 ───────────────────────────────────────────────────────────────
-
-Base.:*(c::Circuit, s::Union{StateVector,DensityMatrix}) = simulate(c, s)
-Base.:*(op::GateOp, s::StateVector) = apply!(copy(s), op)
-Base.:*(op::GateOp, s::DensityMatrix) = apply!(copy(s), op)

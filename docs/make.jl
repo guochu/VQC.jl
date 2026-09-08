@@ -1,6 +1,5 @@
-push!(LOAD_PATH, "../src")
-
 using Documenter
+using QuantumCircuits
 using VQC
 
 makedocs(
@@ -11,7 +10,7 @@ makedocs(
 	"variational.md",
 	"ham.md",
 	"qctrl.md"],
-	format = Documenter.HTML(
+    format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true"
     )
 	)

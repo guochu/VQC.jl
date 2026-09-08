@@ -1,86 +1,60 @@
+# VQC.jl
 
+VQC 是 [QuantumCircuits](https://github.com/) IR 的**态矢量 / 密度矩阵模拟后端**：
+把 `Circuit` 中的指令（`GateOp` / `ChannelOp` / `MeasOp` / `IfOp` / …）高效地
+作用到量子态上，并提供测量、偏迹、期望值与自旋算符代数等原语。
+自动微分由包扩展 `VQCZygoteExt` 提供（`using Zygote` + `using QuantumCircuits` 时自动加载）。
 
-Variational quantum circuit simulator in julia
+约定（与 QuantumCircuits 一致）：比特索引 **1-based**、小端序
+（qubit 1 = 最低有效位）；门矩阵的第一个比特为矩阵最高位。
 
-# VQC.jl's documentation
+## 一个简单的例子：Bell 态
 
-VQC is a julia library for variational quantum circuit simulations. VQC 
-aims to supprot automatic differentiation and allow users to easily build 
-hybrid quantum-classical algorithms. Current VQC also has a basic support 
-for variational Hamiltonian simulation.
-
-A simple code snippet to create a two-qubit bell state
 ```@example
-push!(LOAD_PATH, "../../src")
-using VQC
+using QuantumCircuits, VQC
 
-state = qstate(2)
-circuit = QCircuit()
-push!(circuit, (1, H))
-push!(circuit, ((1, 2), CNOT))
+c = Circuit(2)
+push!(c, H(1))
+push!(c, CX(1, 2))
 
-apply!(circuit, state)
-amplitudes(state)
+ψ = simulate(c, zero_state(2))
+println("probabilities = ", probabilities(ψ))
 
-# Perform quantum measurement
-i, prob = measure!(state, 1)
-println("probability of the 1-th qubit in state $i is $prob.")
-
-# Obtain a particular amplitude
-p = amplitude(state, [0, 1])
+outcome, p = measure!(ψ, 1)
+println("outcome = $outcome, probability = $p")
 ```
 
-Build a variational quantum circuit is as simple as a normal quantum state
+## 变分线路
+
+线路中的参数门可以用符号（`:θ`）构造，演化时通过 `params` 绑定数值：
+
 ```@example
-using VQC
+using QuantumCircuits, VQC
+
+c = Circuit(2)
+push!(c, RX(:θ, 1))
+push!(c, RY(:θ, 2))
+push!(c, CX(1, 2))
+
+println("symbolic parameters: ", parameters(c))
+
+ψ = simulate(c, zero_state(2); params = [0.4])
+println("probabilities = ", probabilities(ψ))
+```
+
+配合 Zygote 可以对参数求梯度（详见[变分量子线路](@ref)）：
+
+```julia
 using Zygote
-L = 3
-state = qstate(L)
-circuit = QCircuit()
-for i in 1:L
-	push!(circuit, RzGate(i, Variable(rand())))
-	push!(circuit, RyGate(i, Variable(rand())))
-	push!(circuit, RzGate(i, Variable(rand())))
-end
 
-for depth in 1:2
-	for i in 1:L-1
-		push!(circuit, CNOTGate((i, i+1)))
-	end
-	for i in 1:L
-		push!(circuit, RzGate(i, Variable(rand())))
-		push!(circuit, RxGate(i, Variable(rand())))
-		push!(circuit, RzGate(i, Variable(rand())))
-	end
-end
-
-# Create a random quantum state of 3 qubits
-target_state = qrandn(L)
-loss(c) = distance(target_state, c * state)
-v = loss(circuit)
-grad = gradient(loss, circuit)
-check_gradient(loss, circuit)
+target = rand_state(2)
+loss(θ) = distance(target, simulate(c, zero_state(2); params = θ))
+θ0 = randn(num_params(c))
+grad = Zygote.gradient(loss, θ0)[1]
 ```
 
-
-Start to use Meteor.jl from "Getting Started" section.
-
-```@contents
-Pages = ["gettingstarted.md"]
-Depth = 2
-```
+## 目录
 
 ```@contents
-Pages = ["variational.md"]
-Depth = 2
-```
-
-```@contents
-Pages = ["ham.md"]
-Depth = 2
-```
-
-```@contents
-Pages = ["qctrl.md"]
 Depth = 2
 ```
