@@ -69,3 +69,42 @@ for _ in 1:200
 end
 counts                                      # Bell 态：00 与 11（=3）各约 50%
 ```
+
+## 完整示例：量子隐形传态
+
+把 qubit 1 上的未知态 `|ψ⟩` 传送到 qubit 3：qubit 2、3 纠缠作量子通道，
+测量 qubit 1、2 后按两个经典位的值对 qubit 3 做 `X` / `Z` 前馈修正。
+这是测量 + 经典控制语句的最小完整算法：
+
+```@example teleport
+using QuantumCircuits, VQC
+
+c = Circuit(3)
+creg = c.cregs[1]
+push!(c, H(1))                    # 待传态：q1 = |+⟩ = H|0⟩
+push!(c, H(2))                    # Bell 对准备：H q2
+push!(c, CX(2, 3))                # CX q2→q3
+push!(c, CX(1, 2))                # CX q1→q2（Bell 基测量准备）
+push!(c, H(1))
+push!(c, measure([1, 2], [creg[1], creg[2]]))   # 测量写入经典位
+QuantumCircuits.if_then(c, creg[2] == 1, Circuit([X(3)]))   # 位修正
+QuantumCircuits.if_then(c, creg[1] == 1, Circuit([Z(3)]))   # 相位修正
+
+function teleport_run()
+    simulate(c, zero_state(3))    # 每次运行：随机测量 + 经典反馈
+end
+
+c                                 # 渲染完整线路
+```
+
+验证：无论经典位取何值，修正后 qubit 3 都应处于 `|+⟩`——
+对 qubit 1、2 求偏迹后与 `|+⟩` 的保真度恒为 1：
+
+```@example teleport
+ρ3 = partial_tr(teleport_run(), [1, 2])          # qubit 3 的约化态
+fidelity(ρ3, qubit_encoding([0.5]))              # |+⟩（θ = 0.5）的保真度 ≈ 1
+```
+
+两个 `if_then` 分支按经典位独立触发——四次测量结果
+`(b₁, b₂) ∈ {00, 01, 10, 11}` 分别对应"无修正 / X / Z / XZ"，
+每次运行只会命中其一。
