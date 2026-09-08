@@ -71,10 +71,11 @@ nqubits(x::DensityMatrix) = _nqubits(x)
     measure(s::Union{StateVector,DensityMatrix}, q::Integer) -> (s', outcome, p)
 
 QuantumCircuits `measure` 协议的态方法：非就地测量，返回坍缩后的
-新态、结果与概率。
+新态、测量结果与概率。
 """
 function measure(s::Union{StateVector,DensityMatrix}, q::Integer)
     out = copy(s)
-    outcome, p = measure!(out, q)
-    return out, outcome, p
+    marg = marginal_probabilities(out, Int(q))
+    outcome = measure!(out, q)
+    return out, outcome, marg[outcome + 1]
 end
