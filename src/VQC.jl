@@ -3,20 +3,19 @@
 
 QuantumCircuits IR 的**态矢量 / 密度矩阵模拟后端**。
 
-分层（对 QuantumCircuits 的依赖被完全隔离在 `ext/` 包扩展中，
-核心层不引用任何 IR 类型）：
+分层：
 
 * **核心层**（`src/states` / `src/kernels` / `src/coreops` / `src/ops` /
   `src/hamiltonian`）：态类型、局域矩阵 / Kraus 原语
   （`apply!` / `apply_kraus!`）、测量 / 后选择 / 偏迹、矩阵期望值；
-* **接口扩展**（`ext/VQCQuantumCircuitsExt.jl`，`using QuantumCircuits`
-  时自动加载）：把 IR 指令（`GateOp` / `ChannelOp` / `MeasOp` / `ReinitOp` /
-  `BarrierOp` / `IfOp` / `BlockOp`）、Pauli 代数与自旋算符代数
-  （`SpinOpTerm` / `SpinOpSum`，类型定义见 `QuantumCircuits.Hamiltonian`，
-  支持任意单比特算子的高效作用）桥接到核心原语，并提供
-  `simulate` / 经典寄存器运行时 / `nqubits` 与 `measure` 协议扩展；
-* **AD 扩展**（`ext/VQCZygoteExt.jl`，`using Zygote` + `using QuantumCircuits`
-  时自动加载）：一般参数门与含噪线路的自动微分。
+* **QuantumCircuits 桥接层**（`src/quantumcircuits`）：把 IR 指令
+  （`GateOp` / `ChannelOp` / `MeasOp` / `ReinitOp` / `BarrierOp` / `IfOp` /
+  `BlockOp`）、Pauli 代数与自旋算符代数（`SpinOpTerm` / `SpinOpSum`，
+  类型定义见 `QuantumCircuits.Hamiltonian`）桥接到核心原语；提供
+  经典寄存器运行时（`ClassicalStore`）与 Interface 后端
+  `StateVectorBackend`（`QuantumCircuits.simulate(c, backend; shots, seed)`）；
+* **AD 扩展**（`ext/VQCZygoteExt.jl`，`using Zygote` 时自动加载）：
+  一般参数门与含噪线路的自动微分。
 
 约定（与 QuantumCircuits 一致）：
 
@@ -27,8 +26,10 @@ QuantumCircuits IR 的**态矢量 / 密度矩阵模拟后端**。
 核心接口：
 
 * `apply!(state, op)`：把单条指令就地作用到态上；
-* `simulate(circuit, state; params)`：演化整条线路（非就地，支持符号参数）；
-* `expectation(h, state)`：`PauliSum` / `PauliTerm` / 一般矩阵的期望值；
+* `simulate(circuit, state; params)`：演化整条线路（非就地，支持符号参数；
+  挂在 `QuantumCircuits.Interface.simulate` 上）；
+* `expectation(h, state)`：`PauliSum` / `PauliTerm` / `SpinOpTerm` /
+  `SpinOpSum` / 一般矩阵的期望值；
 * `probabilities` / `measure!` / `measure` / `sample` / `post_select` /
   `partial_tr`。
 """
@@ -37,8 +38,12 @@ module VQC
 using LinearAlgebra
 using Random
 using StaticArrays
-
-# ── 核心层（不依赖 QuantumCircuits） ─────────────────────────────────────────
+using QuantumCircuits
+using QuantumCircuits: GateOp, ChannelOp, MeasOp, ReinitOp, BarrierOp, IfOp, BlockOp,
+                       Operation, Circuit, Cond, Param, ParamVector, ClbitRef, CReg,
+                       qubits, mat, kraus, parameters, unroll
+import QuantumCircuits: nqubits, measure
+using QuantumCircuits.Interface: Backend
 
 # ── 态 ──
 export StateVector, DensityMatrix, storage,
@@ -62,6 +67,9 @@ export probabilities, marginal_probabilities, measure!,
 # ── 可观测量 / 约化 ──
 export expectation, partial_tr
 
+# ── QuantumCircuits 桥接层 ──
+export ClassicalStore, StateVectorBackend
+
 include("auxiliary/auxiliary.jl")
 include("states/statevector.jl")
 include("states/densitymatrix.jl")
@@ -69,14 +77,9 @@ include("kernels/kernels.jl")
 include("coreops.jl")
 include("ops/ops.jl")
 include("hamiltonian.jl")
+include("quantumcircuits/quantumcircuits.jl")
 
-# ── QuantumCircuits 接口存根 ─────────────────────────────────────────────────
-#
-# `simulate` / `simulate!` 不再由 VQC 定义与导出：二者为
-# `QuantumCircuits.Interface` 的泛型函数，基于态的方法由扩展
-# `VQCQuantumCircuitsExt`（`using QuantumCircuits` 时自动加载）提供；
-# `apply!` / `apply` 为 VQC 的存根：局域矩阵原语（coreops.jl）与
-# IR 指令 / 自旋算符适配（扩展）。
+# ── 存根：IR 指令 / 自旋算符适配由 src/quantumcircuits 提供 ─────────────────
 
 function apply! end
 function apply end

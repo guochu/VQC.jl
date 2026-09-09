@@ -1,9 +1,11 @@
 # 核心层 API
 
-VQC 的核心层**不依赖任何 IR 包**：只 `using VQC` 即可完成量子态构造、
-局域矩阵 / Kraus 作用、测量、偏迹、信息量计算与自旋算符代数——
-这些接口不涉及 `Circuit` / `GateOp`，可与任何自定义流程组合。
-与 QuantumCircuits 线路的协同（`simulate` / 参数绑定 / 自动微分）
+VQC 的核心层（`src/states` / `src/kernels` / `src/coreops`）只依赖
+LinearAlgebra / Random / StaticArrays：量子态构造、局域矩阵 / Kraus 作用、
+测量、偏迹、信息量计算——这些接口不涉及 `Circuit` / `GateOp`，可与任何
+自定义流程组合。
+对 QuantumCircuits IR 的桥接（IR 指令作用、`simulate` / 参数绑定 /
+经典寄存器运行时 / 后端 `StateVectorBackend` / Pauli 与自旋算符代数）
 见[快速开始](@ref)与[变分量子线路](@ref)；比特与索引约定见
 [快速开始](@ref)首节。
 

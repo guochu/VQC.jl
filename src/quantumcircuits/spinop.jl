@@ -5,12 +5,6 @@
 
 using QuantumCircuits.Hamiltonian: SpinOpTerm, SpinOpSum, _spin_matrix
 import LinearAlgebra: mul!, rmul!, dot
-using VQC: StateVector, DensityMatrix, storage, _nqubits,
-           apply_kernel!, lmul_kernel!, axpy_kernel!,
-           dm_lmul_kernel!, dm_axpy_kernel!,
-           multi_expect_kernel, dm_multi_expect_kernel,
-           expect_kernel, dm_expect_kernel
-import VQC: expectation
 
 # ── 高效作用：apply(SpinOpTerm, StateVector) ────────────────────────────────
 

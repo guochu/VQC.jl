@@ -2,8 +2,10 @@
 
 VQC 是 [QuantumCircuits](https://github.com/) IR 的**态矢量 / 密度矩阵模拟后端**：
 把 `Circuit` 中的指令（`GateOp` / `ChannelOp` / `MeasOp` / `IfOp` / …）高效地
-作用到量子态上，并提供测量、偏迹、期望值与自旋算符代数等原语。
-自动微分由包扩展 `VQCZygoteExt` 提供（`using Zygote` + `using QuantumCircuits` 时自动加载）。
+作用到量子态上，并提供测量、偏迹、期望值等原语；在 `src/quantumcircuits`
+桥接层把 QuantumCircuits IR 指令映射到这些原语，并提供
+`StateVectorBackend` 后端实现。
+自动微分由包扩展 `VQCZygoteExt` 提供（`using Zygote` 时自动加载）。
 
 约定（与 QuantumCircuits 一致）：比特索引 **1-based**、小端序
 （qubit 1 = 最低有效位）；门矩阵的第一个比特为矩阵最高位。

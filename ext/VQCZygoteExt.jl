@@ -31,13 +31,10 @@ using QuantumCircuits: _embed, _controlled_matrix
 using VQC
 using VQC: apply_kernel!, _lsb_key, _sorted_key, _offsets, _bit_insert_zeros, post_select,
            expect_kernel
-# 本扩展的触发集（Zygote + QuantumCircuits）包含接口扩展的触发集
-# （QuantumCircuits），因此接口扩展必已加载，可安全取用其内部机制。
-const _QCI = Base.get_extension(VQC, :VQCQuantumCircuitsExt)
-const _pauli_local_matrix = _QCI._pauli_local_matrix
-const _param_env = _QCI._param_env
-const _simulate_bound = _QCI._simulate_bound
-const _ParamEnv = _QCI._ParamEnv
+# 本扩展的触发集（Zygote）加载时 QuantumCircuits 已作为 VQC 的硬依赖加载，
+# 可安全取用桥接层的内部机制。
+using VQC: _pauli_local_matrix, _param_env, _simulate_bound, _ParamEnv,
+           ClassicalStore
 # 被 @adjoint 扩展的函数必须以 import 方式引入
 import VQC: StateVector, DensityMatrix, storage
 

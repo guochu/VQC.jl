@@ -100,7 +100,12 @@ function _simulate_bound(c::Circuit, s::Union{StateVector,DensityMatrix}, env::_
 end
 
 function _simulate_bound!(c::Circuit, s::Union{StateVector,DensityMatrix}, env::_ParamEnv)
-    store = ClassicalStore(c)
+    return _simulate_bound!(c, s, env, ClassicalStore(c))
+end
+
+# 带 ClassicalStore 的变体：后端可在每 shot 结束后读取经典寄存器值
+function _simulate_bound!(c::Circuit, s::Union{StateVector,DensityMatrix}, env::_ParamEnv,
+                          store::ClassicalStore)
     for op in c.ops
         s = _apply_with_store!(s, op, store, env)
     end

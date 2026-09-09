@@ -1,20 +1,19 @@
 name = "VQC"
 uuid = "1a0f967e-e74f-4f58-8b53-d7c235b06da4"
 authors = ["Guo Chu <guochu604b@gmail.com>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+QuantumCircuits = "aefa5731-75ce-4e77-8b64-9dbb49b79a07"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [weakdeps]
-QuantumCircuits = "aefa5731-75ce-4e77-8b64-9dbb49b79a07"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [extensions]
-VQCQuantumCircuitsExt = "QuantumCircuits"
-VQCZygoteExt = ["Zygote", "QuantumCircuits"]
+VQCZygoteExt = "Zygote"
 
 [compat]
 QuantumCircuits = "0.1"
@@ -23,8 +22,7 @@ julia = "1.9"
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-QuantumCircuits = "aefa5731-75ce-4e77-8b64-9dbb49b79a07"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Test", "LinearAlgebra", "QuantumCircuits", "Zygote"]
+test = ["Test", "LinearAlgebra", "Zygote"]
