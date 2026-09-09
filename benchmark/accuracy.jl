@@ -1,11 +1,15 @@
 # accuracy.jl — 精度测试：VQC vs Yao，1..20 比特随机线路
 #
 # 用法：julia --project=... --threads=<N> accuracy.jl <tag>
-#   （tag 用于区分线程配置，如 "1" / "auto"）
+#   （tag 用于区分线程配置，run.jl 会以 1/2/3/4 线程各启动一次）
 #
 # 对每个 n ∈ 1..20、每种 BlasFloat、每种 kernel batch size
 # （8 / 16 / 32 / 64）：构造随机线路，VQC 与 Yao 各自独立作用同一
 # 初态，比较终态相对误差（应 ≤ 1e-5）。
+#
+# 线路覆盖：随机酉门宽度 1..min(5,n)（最多 5 比特门），每种宽度都取
+# 随机子集 / 连续块 / 均匀分散等多种位置，确保任意位置的 5 比特门
+# 与参考实现 Yao 完全一致。
 
 include("common.jl")
 
@@ -21,10 +25,11 @@ println("accuracy: VQC vs Yao（线程 = ", Threads.nthreads(),
 println("="^72)
 
 open(path, "w") do io
-    println(io, "n,eltype,bs,threads,err")
+    println(io, "n,eltype,bs,threads,err,maxnb")
     for K in BATCHSIZES
         VQC.set_kernel_batch!(K)
         for n in 1:20
+            maxnb = min(5, n)
             for T in TYPES
                 gates = random_circuit(rng, n, T)
                 v0 = randn(rng, T, 1 << n)
@@ -32,7 +37,7 @@ open(path, "w") do io
                 v_yao = run_yao(copy(v0), gates, n)
                 err = norm(v_vqc - v_yao) / norm(v_yao)
                 ok = err < 1e-5
-                println(io, "$n,$T,$K,$(Threads.nthreads()),$err")
+                println(io, "$n,$T,$K,$(Threads.nthreads()),$err,$maxnb")
                 @printf("bs=%2d  %3d  %-10s  err = %.3e  %s\n",
                         K, n, T, err, ok ? "OK" : "FAIL <<<")
             end

@@ -6,7 +6,8 @@
 #   julia --project=... run.jl perf       # 只跑性能
 #
 # 精度测试（accuracy.jl）：n = 1..20、4 种 BlasFloat、batch size
-# 8/16/32/64，在单线程与多线程两种配置下各跑一遍，VQC 与 Yao 对拍。
+# 8/16/32/64，在 1/2/3/4 线程下各跑一遍（最多不超过 CPU 核数），
+# VQC 与 Yao 对拍；线路含 1..5 比特随机酉门、多位置（见 accuracy.jl）。
 #
 # 性能测试（perf.jl）：n ∈ {20,22,24,26,28}、4 种 BlasFloat、
 # 2/3/4-qubit 随机酉门 × 4 组位置（low/mid/high/spread）、
@@ -22,7 +23,7 @@ dir = @__DIR__
 mode = get(ARGS, 1, "all")
 ncores = Sys.CPU_THREADS
 
-acc_threads = unique([1, ncores])
+acc_threads = unique(filter(t -> t <= ncores, 1:4))   # 精度：1..4 线程
 perf_threads = unique(filter(t -> t <= ncores, (1, 8)))
 
 function spawn(script::String, threads::Int)

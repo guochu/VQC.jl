@@ -53,19 +53,19 @@ open(path, "w") do io
                 for nb in (2, 3, 4)
                     D = 1 << nb
                     U = rand_unitary(T, D)
-                    U_yao = msb_to_lsb(U, nb)
                     for (loctag, locs) in locsets(n, nb)
                         # VQC（当前 batch size）
                         v = randn(T, 1 << n)
                         sv = StateVector(v, n)
-                        t_vqc = bench_min(() -> apply!(sv, U, locs))
+                        t_vqc = bench_min(() -> VQC.apply!(sv, U, locs))
                         println(io, "$n,$T,$nb,$loctag,$K,$(Threads.nthreads()),$(t_vqc * 1e3),VQC")
                         @printf("  %d-qubit %-6s  VQC   %10.3f ms\n", nb, loctag, t_vqc * 1e3)
-                        # Yao（仅第一个 batch size）
+                        # Yao（仅第一个 batch size；任意位置都做轴重排与 VQC 对齐）
                         if yao_ok
                             reg = ArrayReg(randn(T, 1 << n))
                             t_yao = bench_min(() -> Yao.apply!(reg,
-                                put(n, (sort(collect(locs))...,) => matblock(U_yao))))
+                                put(n, (sort(collect(locs))...,) =>
+                                    matblock(permute_matrix(U, Tuple(locs))))))
                             println(io, "$n,$T,$nb,$loctag,$K,$(Threads.nthreads()),$(t_yao * 1e3),Yao")
                             @printf("  %d-qubit %-6s  Yao   %10.3f ms\n", nb, loctag, t_yao * 1e3)
                         end

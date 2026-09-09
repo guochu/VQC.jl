@@ -1,7 +1,7 @@
 # summarize.jl — 汇总 results/ 下的 CSV，打印关键对比表（由 run.jl 调用）
 #
 # CSV 格式：
-#   accuracy: n,eltype,bs,threads,err
+#   accuracy: n,eltype,bs,threads,err[,maxnb]
 #   perf:     n,eltype,nb,locs,bs,threads,time_ms,impl
 
 using Printf

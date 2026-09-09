@@ -20,27 +20,56 @@ rand_unitary(::Type{T}, D::Int) where {T<:AbstractFloat} = Matrix{T}(qr(randn(T,
 rand_unitary(::Type{Complex{T}}, D::Int) where {T<:AbstractFloat} =
     Matrix{Complex{T}}(qr(randn(Complex{T}, D, D)).Q)
 
-"把 MSB-first 行序的矩阵重排为 LSB-first 行序（Yao 的 matblock 约定）。"
-function msb_to_lsb(U::AbstractMatrix, nb::Int)
-    D = 1 << nb
-    out = similar(U)
-    rev(r) = sum(((r >> (nb - 1 - i)) & 1) << i for i in 0:nb-1)
-    for r in 0:D-1, c in 0:D-1
-        out[rev(r)+1, rev(c)+1] = U[r+1, c+1]
+"把 MSB-first 的 U（作用在 locs 上，locs[1] 为最高位）重排为 Yao 的
+升序 locs 位序矩阵：Yao 的 matblock 总是先把 locs 排序后按自然位权作用，
+任意（含乱序 / 非连续）位置的矩阵必须这样换轴才能与 VQC 语义一致。"
+function permute_matrix(U::AbstractMatrix, locs::NTuple{N,Int}) where {N}
+    D = 1 << N
+    s = Tuple(sort(collect(locs)))                     # Yao 内部排序后的位序
+    j_of = Dict(q => j for (j, q) in enumerate(locs))  # VQC 位权 = N - j（j=1 为最高位）
+    perm(a::Int) = begin                               # Yao 位序行索引 → VQC 位权行索引
+        r = 0
+        for i in 0:N-1
+            q = s[i+1]
+            r |= ((a >> i) & 1) << (N - j_of[q])
+        end
+        return r
+    end
+    out = Matrix{eltype(U)}(undef, D, D)
+    for a in 0:D-1, b in 0:D-1
+        out[a+1, b+1] = U[perm(a)+1, perm(b)+1]
     end
     return out
 end
 
-"随机线路：`depth` 层随机单 / 两比特门（两比特为连续对）。"
-function random_circuit(rng::AbstractRNG, n::Int, T::Type; depth::Int = clamp(2n, 4, 40))
-    gates = Vector{Tuple{Matrix,Tuple{Vararg{Int}}}}()
-    for _ in 1:depth
-        if n == 1 || rand(rng, Bool)
-            push!(gates, (rand_unitary(T, 2), (rand(rng, 1:n),)))
-        else
-            k = rand(rng, 1:n-1)
-            push!(gates, (rand_unitary(T, 4), (k, k + 1)))
+"均匀分散在 1..n 的 w 个位置（spread 模式；w==1 取中间位）。"
+function spread_locs(n::Int, w::Int)
+    w == 1 && return (cld(n, 2),)
+    return Tuple(sort(unique(round.(Int, range(1, n; length = w)))))
+end
+
+"随机线路：宽度 1..min(5,n) 的随机酉门，位置取“随机子集 / 连续块 /
+均匀分散”多种模式，另补足 `depth` 个随机门（随机宽度 + 随机子集位置）。"
+function random_circuit(rng::AbstractRNG, n::Int, T::Type; depth::Int = clamp(2n, 8, 40))
+    maxw = min(5, n)
+    gates = Vector{Tuple{Matrix{T},Tuple{Vararg{Int}}}}()
+    # —— 每种门宽的系统化位置覆盖 ——
+    for w in 1:maxw
+        D = 1 << w
+        p = randperm(rng, n)                           # 随机子集（顺序任意，覆盖降序/非线性位）
+        push!(gates, (rand_unitary(T, D), Tuple(p[1:w])))
+        w == 1 && continue
+        off = rand(rng, 1:n-w+1)                       # 连续块（随机偏移）
+        push!(gates, (rand_unitary(T, D), Tuple(off:off+w-1)))
+        if n >= 2w - 1 && length(spread_locs(n, w)) == w   # 均匀分散
+            push!(gates, (rand_unitary(T, D), spread_locs(n, w)))
         end
+    end
+    # —— 补足深度：随机宽度 + 随机位置 ——
+    while length(gates) < depth
+        w = rand(rng, 1:maxw)
+        p = randperm(rng, n)
+        push!(gates, (rand_unitary(T, 1 << w), Tuple(p[1:w])))
     end
     return gates
 end
@@ -49,16 +78,18 @@ end
 function run_vqc(v0::Vector{T}, gates, n::Int) where {T}
     sv = StateVector(v0, n)
     for (U, locs) in gates
-        apply!(sv, U, locs)
+        VQC.apply!(sv, U, locs)
     end
     return v0
 end
 
-"用 Yao 跑线路（就地，返回终态向量）。"
+"用 Yao 跑线路（就地，返回终态向量）。任意位置的门先做轴重排
+（permute_matrix），再按 Yao 的升序 locs 语义施加。"
 function run_yao(v0::Vector{T}, gates, n::Int) where {T}
     reg = ArrayReg(v0)
     for (U, locs) in gates
-        Yao.apply!(reg, put(n, (sort(locs)...,) => matblock(msb_to_lsb(U, length(locs)))))
+        s = Tuple(sort(collect(locs)))
+        Yao.apply!(reg, put(n, s => matblock(permute_matrix(U, locs))))
     end
     return vec(Yao.statevec(reg))
 end
