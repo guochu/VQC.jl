@@ -222,7 +222,10 @@ end
 """
     fidelity(x, y)
 
-纯态间为 `|⟨x|y⟩|²`；其他组合见 `DensityMatrix` 方法。
+纯态间为 `|⟨x|y⟩|²`；纯态-混合态为 `⟨y|x|y⟩`（见 `DensityMatrix` 方法，
+两种情形各约定数值一致）。混合态-混合态存在多种约定，不提供 `fidelity`
+方法：请用具名的 [`fidelity_squared`](@ref)（平方，Nielsen–Chuang）
+或 [`fidelity_root`](@ref)（开方）。
 """
 fidelity(x::StateVector, y::StateVector) = abs2(dot(x, y))
 

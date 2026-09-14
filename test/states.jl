@@ -61,7 +61,8 @@ end
     ρ2 = DensityMatrix(rand_state(2))
     @test tr(ρ2) ≈ 1 atol = 1e-12
     @test ishermitian(ρ2)
-    @test fidelity(ρ, ρ) ≈ 1
+    @test fidelity_squared(ρ, ρ) ≈ 1
+    @test fidelity_root(ρ, ρ) ≈ 1
     @test ρ ≈ DensityMatrix(zero_state(2))
 
     rd = rand_densitymatrix(2)
@@ -72,6 +73,14 @@ end
     # 纯态密度矩阵 ↔ 保真度
     ψa = rand_state(2)
     @test fidelity(DensityMatrix(ψa), ψa) ≈ 1
+
+    # 混合-混合：两种约定互为平方；纯态一侧与 fidelity 数值一致（无歧义）
+    rd2 = rand_densitymatrix(2)
+    ψb = rand_state(2)
+    @test fidelity_root(rd, rd2)^2 ≈ fidelity_squared(rd, rd2)
+    @test 0 <= fidelity_root(rd, rd2) <= 1 + 1e-12
+    @test fidelity_squared(DensityMatrix(ψb), rd) ≈ fidelity(ψb, rd) atol = 1e-7
+    @test fidelity_squared(DensityMatrix(ψa), DensityMatrix(ψb)) ≈ fidelity(ψa, ψb) atol = 1e-7
 
     # permute DM
     ρp = DensityMatrix(onehot_encoding([1, 0]))

@@ -81,14 +81,42 @@ LinearAlgebra.ishermitian(x::DensityMatrix) = ishermitian(storage(x))
 LinearAlgebra.isposdef(x::DensityMatrix) = isposdef(storage(x))
 
 """
-    fidelity(x::DensityMatrix, y::DensityMatrix)
+    fidelity_squared(x::DensityMatrix, y::DensityMatrix)
 
-`tr(√x √y)`（Uhlmann 保真度的平方根约定见文档）。
+混合态保真度（**平方**约定，Nielsen–Chuang / Qiskit 的 `state_fidelity`）：
+
+    F = (tr√(√x y √x))²
+
+纯态一侧退化为 `|⟨ψ|φ⟩|²` / `⟨ψ|ρ|ψ⟩`，与 [`fidelity`](@ref) 数值一致。
 """
-function fidelity(x::DensityMatrix, y::DensityMatrix)
-    _nqubits(x) == _nqubits(y) || throw(ArgumentError("qubit number mismatch"))
-    return real(tr(sqrt(Hermitian(storage(x))) * sqrt(Hermitian(storage(y)))))
+function fidelity_squared(x::DensityMatrix, y::DensityMatrix)
+    return fidelity_root(x, y)^2
 end
+
+"""
+    fidelity_root(x::DensityMatrix, y::DensityMatrix)
+
+混合态保真度（**开方**约定，root fidelity）：
+
+    f = tr√(√x y √x) = √F
+
+（注意 `tr(√x √y)` 不是任何标准约定下的保真度，仅在两态可交换时
+与 `f` 一致。）
+"""
+function fidelity_root(x::DensityMatrix, y::DensityMatrix)
+    _nqubits(x) == _nqubits(y) || throw(ArgumentError("qubit number mismatch"))
+    fx = sqrt(Hermitian(storage(x)))
+    m = fx * storage(y) * fx                    # √x y √x（厄米半正定）
+    return real(tr(sqrt(Hermitian(m))))
+end
+
+"""
+    fidelity(x::DensityMatrix, y::StateVector)
+
+纯态-混合态保真度 `⟨y|x|y⟩`。该情形各约定一致（无歧义）；
+混合态-混合态存在多种定义，请用具名的
+[`fidelity_squared`](@ref)（平方）或 [`fidelity_root`](@ref)（开方）。
+"""
 fidelity(x::DensityMatrix, y::StateVector) = real(dot(storage(y), storage(x), storage(y)))
 fidelity(x::StateVector, y::DensityMatrix) = fidelity(y, x)
 distance2(x::DensityMatrix, y::DensityMatrix) = _distance2(x, y)
