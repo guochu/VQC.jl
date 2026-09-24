@@ -5,3 +5,4 @@ result/
 *.json
 *.txt
 docs/build/
+qec/
