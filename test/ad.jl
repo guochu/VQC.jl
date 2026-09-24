@@ -138,4 +138,62 @@ using QuantumCircuits: Param
         return real(expectation(hZ0, s))
     end
     @test_throws ArgumentError Zygote.gradient(f13, θ0)
+
+    # ── 14. 内置受控含参门 CRX（matrix_fn 经 _controlled，须 Zygote 可导）──
+    c14 = Circuit(2)
+    push!(c14, X(1))
+    push!(c14, CRX(:θ, 1, 2))
+    f14 = θ -> real(expectation(hZ0, simulate(c14, zero_state(2); params=[θ])))
+    g14 = Zygote.gradient(f14, θ0)[1]
+    fd14(θ) = (f14(θ + 1e-7) - f14(θ - 1e-7)) / 2e-7
+    @test g14 ≈ fd14(θ0) atol = 1e-6
+
+    # ── 15. 内置受控含参门 CPHASE ──
+    c15 = Circuit(2)
+    push!(c15, H(1))
+    push!(c15, H(2))
+    push!(c15, CPHASE(:θ, 1, 2))
+    f15 = θ -> real(expectation(hZ0Z1, simulate(c15, zero_state(2); params=[θ])))
+    g15 = Zygote.gradient(f15, θ0)[1]
+    fd15(θ) = (f15(θ + 1e-7) - f15(θ - 1e-7)) / 2e-7
+    @test g15 ≈ fd15(θ0) atol = 1e-6
+
+    # ── 16. inv 修饰门：∂U† = (∂U)† ──
+    c16 = Circuit(2)
+    push!(c16, H(1))
+    push!(c16, inv(RZZ(:θ, 1, 2)))
+    f16 = θ -> real(expectation(hZ0Z1, simulate(c16, zero_state(2); params=[θ])))
+    g16 = Zygote.gradient(f16, θ0)[1]
+    fd16(θ) = (f16(θ + 1e-7) - f16(θ - 1e-7)) / 2e-7
+    @test g16 ≈ fd16(θ0) atol = 1e-6
+
+    # ── 17. pow 修饰门（整数幂：乘积法则）──
+    c17 = Circuit(1)
+    push!(c17, pow(RX(:θ, 1), 3))
+    f17 = θ -> real(expectation(hZ0, simulate(c17, zero_state(1); params=[θ])))
+    g17 = Zygote.gradient(f17, θ0)[1]
+    fd17(θ) = (f17(θ + 1e-7) - f17(θ - 1e-7)) / 2e-7
+    @test g17 ≈ fd17(θ0) atol = 1e-6
+
+    # ── 18. pow 修饰门（非整数幂：谱除差 Fréchet 导数）──
+    c18 = Circuit(1)
+    push!(c18, pow(RZ(:θ, 1), 1.5))
+    f18 = θ -> real(expectation(hZ0, simulate(c18, zero_state(1); params=[θ])))
+    g18 = Zygote.gradient(f18, θ0)[1]
+    fd18(θ) = (f18(θ + 1e-7) - f18(θ - 1e-7)) / 2e-7
+    @test g18 ≈ fd18(θ0) atol = 1e-6
+
+    # ── 19. matrix_fn 不可自动微分（原地修改数组）：@warn 并回退有限差分 ──
+    bad = QuantumCircuits.ParamGate(:bad, 1, 1, θ -> begin
+        m = zeros(ComplexF64, 2, 2)
+        m[1, 1] = cos(θ)
+        m[2, 2] = 1.0
+        return m
+    end)
+    c19 = Circuit(1)
+    push!(c19, GateOp(bad, [1], [Param(:θ)]))
+    f19 = θ -> real(expectation(hZ0, simulate(c19, zero_state(1); params=[θ])))
+    ref19(θ) = (f19(θ + 1e-7) - f19(θ - 1e-7)) / 2e-7
+    g19 = @test_logs (:warn, r"falling back to finite differences") Zygote.gradient(f19, θ0)
+    @test g19[1] ≈ ref19(θ0) atol = 1e-6
 end

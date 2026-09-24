@@ -3,9 +3,11 @@
 #
 # 能力：
 #   * `simulate(c, ψ; params=θ)`：线路整体对初始态与参数向量求导；
-#   * 一般参数门的梯度：对 `ParamGate.matrix_fn` 走 Zygote 精确微分，
-#     不可微时自动回退到中心差分（因此**不限于 Rx/Ry/Rz**，任意
+#   * 一般参数门的梯度：优先**精确导数**——`ParamGate.matrix_fn` /
+#     `UserGate` 经 Zygote 微分，修饰门 `inv/ctrl` 用结构化规则，`pow`
+#     用矩阵幂的解析 Fréchet 导数（因此**不限于 Rx/Ry/Rz**，任意
 #     `ParamGate` / `UserGate` / 修饰门 `inv/pow/ctrl` 均可求导）；
+#     自动微分失败时 `@warn` 并回退到中心差分；
 #   * 噪声量子线路的梯度：`ChannelOp` 作用在 `DensityMatrix` 上，
 #     通过信道超算符的伴随映射回传；
 #   * `expectation(PauliSum/PauliTerm, ψ)` 与 `post_select` 的伴随；
@@ -110,25 +112,79 @@ _apply_back!(Δ::DensityMatrix, qs::Vector{Int}, m::AbstractMatrix) = _apply_dm_
 
 # ── 一般参数门的雅可比矩阵 ────────────────────────────────────────────────────
 
+"复矩阵值函数 `f(θ)` 的雅可比：实部/虚部分别微分后合并（Zygote 不接受复输出）。"
+function _complex_jacobian(f, θ::Vector{Float64})
+    Jre = first(Zygote.jacobian(p -> real.(vec(f(p))), θ))
+    Jim = first(Zygote.jacobian(p -> imag.(vec(f(p))), θ))
+    return Jre .+ im .* Jim
+end
+
+"把 `matrix_fn` 的参数从向量按索引解包（Zygote 对 `p...` 展开（splat）的梯度是元组而非数组，会破坏 `jacobian`）。"
+function _splat_fn(f::Function, n::Int)
+    n == 1 && return (p -> f(p[1]))
+    n == 2 && return (p -> f(p[1], p[2]))
+    n == 3 && return (p -> f(p[1], p[2], p[3]))
+    n == 4 && return (p -> f(p[1], p[2], p[3], p[4]))
+    return (p -> f(p...))
+end
+
 """
     _gate_jacobians(g::Gate, θ::Vector{Float64}) -> Vector{Matrix{ComplexF64}}
 
-返回 `[∂U/∂θ₁, …, ∂U/∂θₙ]`。优先对 `matrix_fn` 做 Zygote 精确微分，
-失败则回退到中心差分；修饰门（`ctrl`/`inv`）走结构化规则，`pow` 与
-复合 `UserGate` 走差分。
-"""
-function _gate_jacobians(g::Gate, θ::Vector{Float64})
-    return _fd_jacobians(g, θ)
-end
+返回 `[∂U/∂θ₁, …, ∂U/∂θₙ]`，优先**精确导数**：
 
+* `ParamGate`：对 `matrix_fn` 做 Zygote 精确微分（复矩阵按实/虚部分别求导）；
+* `UserGate` / 其它 `Gate`：对 `mat(g, θ)` 做 Zygote 精确微分；
+* `InvGate`：`∂U† = (∂U)†`；`CtrlGate`：`∂(ctrl U) = ctrl(∂U)`（结构化规则）；
+* `PowGate`：矩阵幂的解析 Fréchet 导数（整数幂乘积法则 / 非整数谱除差公式）。
+
+自动微分失败（`matrix_fn` 不可微）时 `@warn` 并回退到中心差分
+（[`_fd_jacobians`](@ref)，相对精度 ~1e-9）。
+"""
 function _gate_jacobians(g::ParamGate, θ::Vector{Float64})
     n = 1 << nqubits(g)
-    try
-        J = first(Zygote.jacobian(p -> vec(g.matrix_fn(p...)), θ))
-        return [reshape(ComplexF64.(view(J, :, j)), n, n) for j in eachindex(θ)]
-    catch
-        return _fd_jacobians(g, θ)
+    J = _gate_jacobian_or_fd(g, _splat_fn(g.matrix_fn, g.nparams), θ)
+    return [reshape(ComplexF64.(view(J, :, j)), n, n) for j in eachindex(θ)]
+end
+
+function _gate_jacobians(g::UserGate, θ::Vector{Float64})
+    n = 1 << nqubits(g)
+    J = _gate_jacobian_or_fd(g, p -> mat(g, p), θ)
+    return [reshape(ComplexF64.(view(J, :, j)), n, n) for j in eachindex(θ)]
+end
+
+function _gate_jacobians(g::Gate, θ::Vector{Float64})
+    n = 1 << nqubits(g)
+    J = _gate_jacobian_or_fd(g, p -> mat(g, p), θ)
+    return [reshape(ComplexF64.(view(J, :, j)), n, n) for j in eachindex(θ)]
+end
+
+"""
+    _gate_jacobian_or_fd(g, f, θ) -> Matrix
+
+优先对 `f(θ)` 做 Zygote 精确雅可比；失败时 `@warn` 并回退
+[`_fd_jacobians`](@ref)。返回统一布局的 `n² × nparams` 矩阵。
+"""
+function _gate_jacobian_or_fd(g::Gate, f, θ::Vector{Float64})
+    return try
+        _complex_jacobian(f, θ)
+    catch err
+        @warn "gate $(name(g)): automatic differentiation failed, " *
+              "falling back to finite differences (Zygote error: $(sprint(showerror, err)))"
+        reduce(hcat, [vec(dJ) for dJ in _fd_jacobians(g, θ)])
     end
+end
+
+"中心差分回退（相对精度 ~1e-9）：AD 失败时对 `mat(g, θ)` 逐参数数值求导。"
+function _fd_jacobians(g::Gate, θ::Vector{Float64})
+    out = Vector{Matrix{ComplexF64}}(undef, length(θ))
+    for j in eachindex(θ)
+        h = 1e-6 * max(1.0, abs(θ[j]))
+        θp = copy(θ); θp[j] += h
+        θm = copy(θ); θm[j] -= h
+        out[j] = (Matrix{ComplexF64}(mat(g, θp)) - Matrix{ComplexF64}(mat(g, θm))) ./ (2h)
+    end
+    return out
 end
 
 "逆门的导数：∂U†/∂θ = (∂U/∂θ)†（精确）。"
@@ -141,20 +197,48 @@ function _gate_jacobians(g::CtrlGate, θ::Vector{Float64})
     return [_controlled_matrix(dU, g.negs) for dU in _gate_jacobians(g.g, θ)]
 end
 
-function _gate_jacobians(g::Union{PowGate,UserGate}, θ::Vector{Float64})
-    return _fd_jacobians(g, θ)
+"幂门导数：`∂(U^k)/∂θ` 的解析 Fréchet 导数。"
+function _gate_jacobians(g::PowGate, θ::Vector{Float64})
+    k = g.k
+    k == -1 && return [adjoint(dU) for dU in _gate_jacobians(g.g, θ)]  # 与 _matrix_pow 的 k=-1 快捷一致
+    U = mat(g.g, θ)
+    dUs = _gate_jacobians(g.g, θ)
+    return isinteger(k) ? [_pow_int_jacobian(U, dU, Int(k)) for dU in dUs] :
+                           [_pow_spectral_jacobian(U, dU, k) for dU in dUs]
 end
 
-"中心差分回退（相对精度 ~1e-9）。"
-function _fd_jacobians(g::Gate, θ::Vector{Float64})
-    out = Vector{Matrix{ComplexF64}}(undef, length(θ))
-    for j in eachindex(θ)
-        h = 1e-6 * max(1.0, abs(θ[j]))
-        θp = copy(θ); θp[j] += h
-        θm = copy(θ); θm[j] -= h
-        out[j] = (Matrix{ComplexF64}(mat(g, θp)) - Matrix{ComplexF64}(mat(g, θm))) ./ (2h)
+"d(U^m)/∂θ（m ≥ 0 整数）：`Σⱼ Uʹ (∂U) U^{m-1-j}`（乘积法则，精确）。"
+function _pow_int_jacobian(U::AbstractMatrix, dU::AbstractMatrix, m::Int)
+    n = size(U, 1)
+    m == 0 && return zeros(eltype(dU), n, n)
+    powers = [Matrix{eltype(U)}(I, n, n)]        # powers[j+1] = U^j
+    for _ in 1:(m-1)
+        push!(powers, powers[end] * U)
     end
-    return out
+    acc = zero(dU * powers[end])
+    for j in 0:(m-1)
+        acc += powers[j+1] * dU * powers[m-j]    # U^j · dU · U^{m-1-j}
+    end
+    return acc
+end
+
+"""
+    _pow_spectral_jacobian(U, dU, k)
+
+非整数幂 `d(U^k)` 的解析 Fréchet 导数：`U` 酉必可对角化，沿与
+`_matrix_pow` 相同的特征分解 `U = VΛV⁻¹`，用 Loewner 除差公式
+
+    dF = V · (H ∘ (V⁻¹ dU V)) · V⁻¹,   H_ij = (λᵢ^k − λⱼ^k)/(λᵢ − λⱼ)，
+    λᵢ = λⱼ 时取精确极限 H_ij = k·λᵢ^(k-1)。
+"""
+function _pow_spectral_jacobian(U::AbstractMatrix, dU::AbstractMatrix, k::Real)
+    E = eigen(Matrix{ComplexF64}(U))
+    V = Matrix{ComplexF64}(E.vectors)
+    λ = ComplexF64.(E.values)
+    W = V \ (Matrix{ComplexF64}(dU) * V)
+    H = [(abs(λi - λj) <= 1e-12 * max(1.0, abs(λi)) ? k * λi^(k - 1) :
+          (λi^k - λj^k) / (λi - λj)) for λi in λ, λj in λ]
+    return V * (H .* W) / V
 end
 
 "门参数的绑定值（符号参数查表，常量直取）。"
