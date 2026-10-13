@@ -61,8 +61,7 @@ end
     ρ2 = DensityMatrix(rand_state(2))
     @test tr(ρ2) ≈ 1 atol = 1e-12
     @test ishermitian(ρ2)
-    @test fidelity_squared(ρ, ρ) ≈ 1
-    @test fidelity_root(ρ, ρ) ≈ 1
+    @test fidelity(ρ, ρ) ≈ 1
     @test ρ ≈ DensityMatrix(zero_state(2))
 
     rd = rand_densitymatrix(2)
@@ -74,15 +73,38 @@ end
     ψa = rand_state(2)
     @test fidelity(DensityMatrix(ψa), ψa) ≈ 1
 
-    # 混合-混合：两种约定互为平方；纯态一侧与 fidelity 数值一致（无歧义）
+    # 混合-混合：Uhlmann 开方约定；纯态一侧为 √⟨ψ|ρ|ψ⟩（平方即 NC 约定）
     rd2 = rand_densitymatrix(2)
     ψb = rand_state(2)
-    @test fidelity_root(rd, rd2)^2 ≈ fidelity_squared(rd, rd2)
-    @test 0 <= fidelity_root(rd, rd2) <= 1 + 1e-12
-    @test fidelity_squared(DensityMatrix(ψb), rd) ≈ fidelity(ψb, rd) atol = 1e-7
-    @test fidelity_squared(DensityMatrix(ψa), DensityMatrix(ψb)) ≈ fidelity(ψa, ψb) atol = 1e-7
+    @test 0 <= fidelity(rd, rd2) <= 1 + 1e-12
+    @test fidelity(DensityMatrix(ψb), rd)^2 ≈
+          real(dot(storage(ψb), storage(rd), storage(ψb))) atol = 1e-7
+    @test fidelity(DensityMatrix(ψa), DensityMatrix(ψb)) ≈ fidelity(ψa, ψb) atol = 1e-7
 
     # permute DM
     ρp = DensityMatrix(onehot_encoding([1, 0]))
     @test permute(ρp, [2, 1]) ≈ DensityMatrix(onehot_encoding([0, 1]))
+end
+
+@testset "fidelity 自洽（纯态 ↔ 密度矩阵）" begin
+    # 所有 fidelity 方法经纯态→密度矩阵转换后必须互相一致（Uhlmann 开方约定）：
+    #   fidelity(ψ, φ) = |⟨ψ|φ⟩| = fidelity(ρψ, ρφ) = fidelity(ρψ, φ) = fidelity(φ, ρψ)
+    #   fidelity(ρψ, ρ)² = ⟨ψ|ρ|ψ⟩  （Nielsen–Chuang 平方约定）
+    for n in (1, 2, 3)
+        ψ, φ = rand_state(n), rand_state(n)
+        ρψ, ρφ = DensityMatrix(ψ), DensityMatrix(φ)
+        ov = abs(dot(storage(ψ), storage(φ)))
+        @test fidelity(ψ, φ) ≈ ov atol = 1e-12
+        # DM 路径含矩阵开方，随机态下舍入 ~1e-8
+        @test fidelity(ρψ, ρφ) ≈ ov atol = 1e-7
+        @test fidelity(ρψ, φ) ≈ ov atol = 1e-7
+        @test fidelity(φ, ρψ) ≈ ov atol = 1e-7
+
+        ρ = rand_densitymatrix(n)
+        p = real(dot(storage(ψ), storage(ρ), storage(ψ)))
+        @test fidelity(ρψ, ρ)^2 ≈ p atol = 1e-7
+        @test fidelity(ρ, ψ) ≈ sqrt(p) atol = 1e-10
+        @test 0 <= fidelity(ρψ, ρ) <= 1 + 1e-7
+        @test fidelity(ρψ, ρψ) ≈ 1 atol = 1e-7
+    end
 end

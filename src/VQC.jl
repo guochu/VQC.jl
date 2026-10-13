@@ -52,7 +52,7 @@ export StateVector, DensityMatrix, storage,
        reset!, reset_onehot!, reset_qubit!, amplitude, amplitudes
 
 # ── 线性代数 / 信息量 ──
-export fidelity, fidelity_squared, fidelity_root,
+export fidelity,
        distance, distance2, schmidt_numbers, entropy, renyi_entropy
 
 # ── 通用态原语 ──

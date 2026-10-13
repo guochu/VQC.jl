@@ -222,25 +222,25 @@ end
 """
     fidelity(x, y)
 
-纯态间为 `|⟨x|y⟩|²`；纯态-混合态为 `⟨y|x|y⟩`（见 `DensityMatrix` 方法，
-两种情形各约定数值一致）。混合态-混合态存在多种约定，不提供 `fidelity`
-方法：请用具名的 [`fidelity_squared`](@ref)（平方，Nielsen–Chuang）
-或 [`fidelity_root`](@ref)（开方）。
+统一采用开方（Uhlmann）约定：纯态间为 `|⟨x|y⟩|`，纯态-混合态为 `√⟨y|x|y⟩`、
+混合态-混合态为 `tr√(√x y √x)`（见 `DensityMatrix` 方法）。Nielsen–Chuang
+平方约定对应相应值的平方。
 """
-fidelity(x::StateVector, y::StateVector) = abs2(dot(x, y))
+fidelity(x::StateVector, y::StateVector) = abs(dot(x, y))
 
 """
     distance(x, y) -> Real
 
-两量子态的距离：纯态间为 `√(1 - fidelity)`，
-密度矩阵间为 Hilbert-Schmidt 距离。
+两量子态的距离：纯态间为态矢量的欧氏距离 `‖x − y‖₂`
+（归一化态即 `√(2 - 2|⟨x|y⟩|)` 的实部内积型），密度矩阵间为
+Hilbert-Schmidt 距离。
 """
 distance(x::StateVector, y::StateVector) = _distance(x, y)
 
 """
     distance2(x, y) -> Real
 
-两量子态的平方距离：纯态间为 `1 - fidelity`，
-密度矩阵间为 Hilbert-Schmidt 平方距离。
+[`distance`](@ref) 的平方：纯态间为 `‖x − y‖₂²`，密度矩阵间为
+Hilbert-Schmidt 平方距离。
 """
 distance2(x::StateVector, y::StateVector) = _distance2(x, y)

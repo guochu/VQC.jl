@@ -134,8 +134,6 @@ expectation(Matrix{Float64}(I, 4, 4), ρ)   # tr(ρ) = 1
 
 ```@docs
 fidelity
-fidelity_squared
-fidelity_root
 distance
 distance2
 schmidt_numbers
@@ -148,11 +146,10 @@ using VQC
 
 ψ, φ = rand_state(3), rand_state(3)
 ρ = DensityMatrix(ψ)
-fidelity(ψ, φ)                     # 纯态-纯态：|⟨ψ|φ⟩|²
-fidelity(ρ, φ)                     # 纯态-混合态：⟨φ|ρ|φ⟩（各约定一致）
+fidelity(ψ, φ)                     # 纯态-纯态：|⟨ψ|φ⟩|（Uhlmann 开方约定）
+fidelity(ρ, φ)                     # 纯态-混合态：√⟨φ|ρ|φ⟩（Uhlmann 开方约定）
 rd = rand_densitymatrix(3)
-fidelity_squared(ρ, rd)            # 混合-混合（平方约定，Nielsen–Chuang）
-fidelity_root(ρ, rd)               # 混合-混合（开方约定）= √F
+fidelity(ρ, rd)                    # 混合-混合：tr√(√ρ rd √ρ)（NC/Qiskit 为其平方）
 entropy(ρ)                         # 谱（香农）熵
 renyi_entropy(partial_tr(ψ, [1]))  # 单比特约化态的 Rényi-2 熵
 nothing
