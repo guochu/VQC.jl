@@ -9,7 +9,7 @@ QuantumCircuits IR 的**态矢量 / 密度矩阵模拟后端**。
   `src/hamiltonian`）：态类型、局域矩阵 / Kraus 原语
   （`apply!` / `apply_kraus!`）、测量 / 后选择 / 偏迹、矩阵期望值；
 * **QuantumCircuits 桥接层**（`src/quantumcircuits`）：把 IR 指令
-  （`GateOp` / `ChannelOp` / `MeasOp` / `ReinitOp` / `BarrierOp` / `IfOp` /
+  （`GateOp` / `ChannelOp` / `MeasOp` / `ResetOp` / `BarrierOp` / `IfOp` /
   `BlockOp`）、Pauli 代数与自旋算符代数（`SpinOpTerm` / `SpinOpSum`，
   类型定义见 `QuantumCircuits.Hamiltonian`）桥接到核心原语；提供
   经典寄存器运行时（`ClassicalStore`）与 Interface 后端
@@ -39,7 +39,7 @@ using LinearAlgebra
 using Random
 using StaticArrays
 using QuantumCircuits
-using QuantumCircuits: GateOp, ChannelOp, MeasOp, ReinitOp, BarrierOp, IfOp, BlockOp,
+using QuantumCircuits: GateOp, ChannelOp, MeasOp, ResetOp, BarrierOp, IfOp, BlockOp,
                        Operation, Circuit, Cond, Param, ParamVector, ClbitRef, CReg,
                        qubits, mat, kraus, parameters, unroll
 import QuantumCircuits: nqubits, measure

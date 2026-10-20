@@ -17,7 +17,7 @@ end
 把 IR 指令 `op` 就地作用到 `state` 上，返回（可能被提升类型的）态。
 
 支持：`GateOp`（酉门）、`ChannelOp`（噪声信道，态自动提升为
-`DensityMatrix`）、`MeasOp`（坍缩，测量结果丢弃）、`ReinitOp`、
+`DensityMatrix`）、`MeasOp`（坍缩，测量结果丢弃）、`ResetOp`、
 `BarrierOp`（无操作）、`BlockOp`（展开执行）。`IfOp` 需要经典寄存器
 状态，请通过 `simulate` 执行。
 
@@ -46,14 +46,14 @@ apply!(s::StateVector, op::ChannelOp, table::Union{Nothing,AbstractDict}=nothing
 apply!(s::DensityMatrix, op::ChannelOp, table::Union{Nothing,AbstractDict}=nothing) =
     apply_kraus!(s, kraus(op.channel), Tuple(qubits(op)))
 
-# ── ReinitOp / BarrierOp / MeasOp ────────────────────────────────────────────
+# ── ResetOp / BarrierOp / MeasOp ────────────────────────────────────────────
 
 """
-    apply!(state, op::ReinitOp) -> state
+    apply!(state, op::ResetOp) -> state
 
 把 `op.qubits` 中的每个比特相干重置到 `|0⟩`。
 """
-function apply!(s::Union{StateVector,DensityMatrix}, op::ReinitOp, table::Union{Nothing,AbstractDict}=nothing)
+function apply!(s::Union{StateVector,DensityMatrix}, op::ResetOp, table::Union{Nothing,AbstractDict}=nothing)
     for q in qubits(op)
         s = reset_qubit_zero!(s, q)
     end

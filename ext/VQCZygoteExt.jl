@@ -15,7 +15,7 @@
 #
 # 约束：
 #   * 含噪线路的求导须全程使用 `DensityMatrix`；
-#   * `MeasOp` / `ReinitOp` / `IfOp` 不可微（反向经过时抛错）；
+#   * `MeasOp` / `ResetOp` / `IfOp` 不可微（反向经过时抛错）；
 #     `BarrierOp` / 全酉 `BlockOp` 透明回传。
 # =============================================================================
 
@@ -26,7 +26,7 @@ using Zygote: @adjoint
 using LinearAlgebra
 using QuantumCircuits
 using QuantumCircuits: Gate, ConstGate, ParamGate, UserGate, InvGate, PowGate, CtrlGate,
-                       GateOp, ChannelOp, BarrierOp, BlockOp, MeasOp, ReinitOp, IfOp,
+                       GateOp, ChannelOp, BarrierOp, BlockOp, MeasOp, ResetOp, IfOp,
                        Operation, Circuit, Channel, Param,
                        qubits, mat, kraus, nqubits, parameters, unroll
 using QuantumCircuits: _embed, _controlled_matrix
@@ -339,7 +339,7 @@ _flatten_ops(ops) = _flatten_ops!(Operation[], ops)
 
 """
 正向重放：记录每条平铺指令的输入态（门梯度需要真实中间态——
-非酉参数门无法用 U† 拉回）。`MeasOp` / `ReinitOp` / `IfOp` 不可微，
+非酉参数门无法用 U† 拉回）。`MeasOp` / `ResetOp` / `IfOp` 不可微，
 重放即抛 `ArgumentError`。
 """
 function _forward_states(ops::Vector{Operation}, s::Union{StateVector,DensityMatrix},

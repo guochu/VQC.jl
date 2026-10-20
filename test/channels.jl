@@ -46,14 +46,14 @@
 
     # ── 相干重置（Kraus: K₀ = |0⟩⟨0|, K₁ = |0⟩⟨1|） ──
     ρx = DensityMatrix(apply!(zero_state(1), X(1)))     # |1⟩
-    @test apply!(copy(ρx), QuantumCircuits.reinit(1)) ≈ DensityMatrix(zero_state(1))
+    @test apply!(copy(ρx), QuantumCircuits.reset(1)) ≈ DensityMatrix(zero_state(1))
     # 直积态重置不影响其余比特
     ψp = qubit_encoding([0.3, 0.8])
     ρp = DensityMatrix(ψp)
-    @test apply!(copy(ρp), QuantumCircuits.reinit(1)) ≈ DensityMatrix(qubit_encoding([0.0, 0.8])) atol = 1e-10
+    @test apply!(copy(ρp), QuantumCircuits.reset(1)) ≈ DensityMatrix(qubit_encoding([0.0, 0.8])) atol = 1e-10
     # 纯态相干重置
     ψr = apply!(zero_state(1), X(1))
-    @test apply!(copy(ψr), QuantumCircuits.reinit(1)) ≈ zero_state(1)
+    @test apply!(copy(ψr), QuantumCircuits.reset(1)) ≈ zero_state(1)
 
     # ── 类型语义：以态的 eltype 为准 ──
     # 实算子 + 实态 → 保持实类型；实算子 + 复态 → 保持复类型
