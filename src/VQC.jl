@@ -41,6 +41,7 @@ using StaticArrays
 using QuantumCircuits
 using QuantumCircuits: GateOp, ChannelOp, MeasOp, ResetOp, BarrierOp, IfOp, BlockOp,
                        Operation, Circuit, Cond, Param, ParamVector, ClbitRef, CReg,
+                       ClassicalStore, reg_value, set_clbit!,
                        qubits, mat, kraus, parameters, unroll
 import QuantumCircuits: nqubits, measure
 using QuantumCircuits.Interface: Backend
@@ -69,7 +70,7 @@ export probabilities, marginal_probabilities, measure!,
 export expectation, partial_tr
 
 # ── QuantumCircuits 桥接层 ──
-export ClassicalStore, StateVectorBackend
+export StateVectorBackend
 
 include("auxiliary/auxiliary.jl")
 include("states/statevector.jl")

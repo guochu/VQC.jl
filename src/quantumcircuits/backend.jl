@@ -57,7 +57,7 @@ function QuantumCircuits.Interface.simulate(c::Circuit, b::StateVectorBackend;
         s = _simulate_bound!(c, zero_state(b.dtype, c.n), _ParamEnv(), store)
         outcome = Dict{ClbitRef,Int}()
         for reg in measured
-            v = _reg_value(store, reg)
+            v = reg_value(store, reg)
             for i in 1:reg.n
                 outcome[ClbitRef(reg, i)] = (v >> (i - 1)) & 1
             end
